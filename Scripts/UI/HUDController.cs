@@ -12,6 +12,7 @@ public partial class HUDController : Control
     private Label? _parLabel;
     private Label? _strokeLabel;
     private Label? _clubLabel;
+    private Label? _powerLabel;
     private Label? _distanceLabel;
     private Label? _windLabel;
     private Button? _returnToMenuButton;
@@ -23,6 +24,7 @@ public partial class HUDController : Control
         _parLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ParLabel");
         _strokeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StrokeLabel");
         _clubLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ClubLabel");
+        _powerLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/PowerLabel");
         _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
@@ -80,6 +82,23 @@ public partial class HUDController : Control
         if (_distanceLabel != null)
         {
             _distanceLabel.Text = $"Distance to Cup: {distance:0.0}";
+        }
+    }
+
+    public void SetClubName(string clubName)
+    {
+        if (_clubLabel != null)
+        {
+            _clubLabel.Text = $"Club: {clubName}";
+        }
+    }
+
+    public void SetPower(float chargeRatio, float powerValue)
+    {
+        if (_powerLabel != null)
+        {
+            var percentage = Mathf.RoundToInt(chargeRatio * 100.0f);
+            _powerLabel.Text = $"Power: {percentage}% ({powerValue:0})";
         }
     }
 

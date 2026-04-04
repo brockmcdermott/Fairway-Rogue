@@ -11,9 +11,9 @@ config_version=5
 [application]
 
 config/name="Fairway Rogue"
+run/main_scene="res://Scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.5", "Forward Plus")
 config/icon="res://icon.svg"
-run/main_scene="res://Scenes/MainMenu.tscn"
 
 [autoload]
 
