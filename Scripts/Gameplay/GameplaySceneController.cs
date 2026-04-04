@@ -2,13 +2,6 @@ using Godot;
 
 public partial class GameplaySceneController : Node2D
 {
-    private static readonly int[] TemporaryParByHole =
-    {
-        4, 3, 5,
-        4, 4, 3,
-        5, 4, 4
-    };
-
     private HUDController? _hud;
     private HoleController? _holeController;
     private BallController? _ballController;
@@ -16,7 +9,10 @@ public partial class GameplaySceneController : Node2D
     private ShotController? _shotController;
     private LieEvaluator? _lieEvaluator;
     private HazardResolver? _hazardResolver;
+    private HoleGenerator? _holeGenerator;
+    private TerrainPainter? _terrainPainter;
     private RecoveryDialogController? _recoveryDialog;
+    private HoleLayout? _activeLayout;
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
@@ -30,6 +26,8 @@ public partial class GameplaySceneController : Node2D
         _shotController = GetNodeOrNull<ShotController>("ShotController");
         _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
         _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
+        _holeGenerator = GetNodeOrNull<HoleGenerator>("HoleGenerator");
+        _terrainPainter = GetNodeOrNull<TerrainPainter>("TerrainPainter");
         _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("RecoveryDialog");
 
         if (_hud != null)
@@ -38,7 +36,7 @@ public partial class GameplaySceneController : Node2D
             _hud.SetRecoveryPromptVisible(false);
         }
 
-        ApplyTemporaryHoleConfiguration();
+        GenerateAndApplyHoleLayout();
 
         if (_holeController != null)
         {
@@ -112,7 +110,7 @@ public partial class GameplaySceneController : Node2D
             _holeController.Par,
             _holeController.LocalStrokeCount,
             clubName: _clubController.CurrentClub.Name,
-            windText: "Aim: Left/Right | Club: Up/Down | Hold Space: Power"
+            windText: BuildHudWindAndControlsText()
         );
         _hud.SetStatusMessage("Ready for next shot.");
 
@@ -124,30 +122,62 @@ public partial class GameplaySceneController : Node2D
         }
     }
 
-    private void ApplyTemporaryHoleConfiguration()
+    private void GenerateAndApplyHoleLayout()
     {
-        if (_holeController == null)
+        if (_holeController == null || _holeGenerator == null)
         {
             return;
         }
 
         var run = RunManagerSingleton;
+        var runSeed = run?.Seed ?? (int)Time.GetUnixTimeFromSystem();
         var holeIndex = run?.CurrentHoleIndex ?? _holeController.HoleNumber;
-        var resolvedHoleIndex = Mathf.Max(1, holeIndex);
+        var totalHoles = run?.TotalHoles ?? RunManager.DefaultTotalHoles;
 
-        _holeController.HoleNumber = resolvedHoleIndex;
-        _holeController.Par = GetTemporaryParForHole(resolvedHoleIndex);
-    }
-
-    private static int GetTemporaryParForHole(int holeIndex)
-    {
-        if (holeIndex <= 0)
+        _activeLayout = _holeGenerator.GenerateLayout(runSeed, holeIndex, totalHoles);
+        _holeController.ApplyGeneratedLayout(_activeLayout, _terrainPainter);
+        if (_activeLayout == null)
         {
-            return 4;
+            return;
         }
 
-        var arrayIndex = (holeIndex - 1) % TemporaryParByHole.Length;
-        return TemporaryParByHole[arrayIndex];
+        var direction = GetCompassDirection(_activeLayout.WindDirection);
+        _hud?.SetStatusMessage($"Generated hole {_activeLayout.HoleNumber} | Wind {direction} {_activeLayout.WindStrength:0.00}");
+    }
+
+    private string BuildHudWindAndControlsText()
+    {
+        const string controls = "Aim: Left/Right | Club: Up/Down | Hold Space: Power";
+        if (_activeLayout == null)
+        {
+            return controls;
+        }
+
+        var direction = GetCompassDirection(_activeLayout.WindDirection);
+        return $"{controls} | Wind: {direction} {_activeLayout.WindStrength:0.00}";
+    }
+
+    private static string GetCompassDirection(Vector2 vector)
+    {
+        if (vector == Vector2.Zero)
+        {
+            return "Calm";
+        }
+
+        var angle = Mathf.RadToDeg(vector.Angle());
+        if (angle < 0.0f)
+        {
+            angle += 360.0f;
+        }
+
+        if (angle is >= 337.5f or < 22.5f) return "E";
+        if (angle < 67.5f) return "SE";
+        if (angle < 112.5f) return "S";
+        if (angle < 157.5f) return "SW";
+        if (angle < 202.5f) return "W";
+        if (angle < 247.5f) return "NW";
+        if (angle < 292.5f) return "N";
+        return "NE";
     }
 
     private void OnMainMenuRequested()

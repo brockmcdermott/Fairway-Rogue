@@ -9,6 +9,7 @@ public partial class HoleController : Node2D
     public int LocalStrokeCount { get; private set; }
     public bool IsHoleComplete { get; private set; }
     public int ScoreRelativeToPar => LocalStrokeCount - Par;
+    public HoleLayout? ActiveLayout { get; private set; }
 
     public Vector2 TeePosition => _teeMarker?.GlobalPosition ?? GlobalPosition;
     public Vector2 CupPosition => _cupArea?.GlobalPosition ?? GlobalPosition;
@@ -38,6 +39,30 @@ public partial class HoleController : Node2D
     {
         _trackedBall = ball;
         _trackedBall.ResetAt(TeePosition);
+    }
+
+    public void ApplyGeneratedLayout(HoleLayout layout, TerrainPainter? terrainPainter)
+    {
+        ActiveLayout = layout;
+        HoleNumber = Mathf.Max(1, layout.HoleNumber);
+        Par = Mathf.Max(1, layout.Par);
+
+        if (_teeMarker != null)
+        {
+            _teeMarker.Position = ToLocal(layout.TeePosition);
+        }
+
+        var cupRoot = _cupArea?.GetParentOrNull<Node2D>();
+        if (cupRoot != null)
+        {
+            cupRoot.Position = ToLocal(layout.CupPosition);
+        }
+
+        terrainPainter?.PaintLayout(this, layout);
+        _roughPolygon = GetNodeOrNull<Polygon2D>("Visuals/Rough");
+
+        ResetHoleState();
+        _trackedBall?.ResetAt(TeePosition);
     }
 
     public void RegisterStroke()
@@ -77,6 +102,11 @@ public partial class HoleController : Node2D
 
     public Rect2 GetCourseBounds()
     {
+        if (ActiveLayout != null)
+        {
+            return ActiveLayout.Bounds;
+        }
+
         if (_roughPolygon == null || _roughPolygon.Polygon.Length == 0)
         {
             return new Rect2(new Vector2(100, 100), new Vector2(1080, 520));
