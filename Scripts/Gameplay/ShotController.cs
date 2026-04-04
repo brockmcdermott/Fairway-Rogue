@@ -14,18 +14,25 @@ public partial class ShotController : Node2D
     private HoleController? _hole;
     private HUDController? _hud;
     private ClubController? _clubController;
+    private LieEvaluator? _lieEvaluator;
 
     private bool _inputEnabled = true;
     private bool _isCharging;
     private float _chargeTime;
     private float _aimAngleRadians;
 
-    public void Configure(BallController ball, HoleController hole, HUDController hud, ClubController clubController)
+    public void Configure(
+        BallController ball,
+        HoleController hole,
+        HUDController hud,
+        ClubController clubController,
+        LieEvaluator lieEvaluator)
     {
         _ball = ball;
         _hole = hole;
         _hud = hud;
         _clubController = clubController;
+        _lieEvaluator = lieEvaluator;
 
         _clubController.ClubChanged += OnClubChanged;
 
@@ -79,6 +86,10 @@ public partial class ShotController : Node2D
 
         var club = _clubController!.CurrentClub;
         var shotPower = GetCurrentShotPower(club);
+
+        var currentLie = _lieEvaluator != null ? _lieEvaluator.CurrentLie : TerrainType.Fairway;
+        var terrainProperties = TerrainDatabase.GetProperties(currentLie);
+        shotPower *= terrainProperties.PowerMultiplier;
 
         var origin = _ball!.GlobalPosition;
         var direction = GetAimDirection();
@@ -184,6 +195,9 @@ public partial class ShotController : Node2D
 
         var club = _clubController!.CurrentClub;
         var shotPower = GetCurrentShotPower(club);
+        var lieForShot = _lieEvaluator != null ? _lieEvaluator.CurrentLie : TerrainType.Fairway;
+        var terrainProperties = TerrainDatabase.GetProperties(lieForShot);
+        shotPower *= terrainProperties.PowerMultiplier;
 
         _isCharging = false;
 
@@ -226,6 +240,9 @@ public partial class ShotController : Node2D
         var club = _clubController.CurrentClub;
         var ratio = GetChargeRatio();
         var power = GetCurrentShotPower(club);
+        var lieForHud = _lieEvaluator != null ? _lieEvaluator.CurrentLie : TerrainType.Fairway;
+        var terrainProperties = TerrainDatabase.GetProperties(lieForHud);
+        power *= terrainProperties.PowerMultiplier;
 
         _hud.SetPower(ratio, power);
     }

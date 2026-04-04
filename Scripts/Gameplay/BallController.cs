@@ -17,9 +17,12 @@ public partial class BallController : Area2D
     public Vector2 Velocity { get; private set; } = Vector2.Zero;
     public bool IsMoving { get; private set; }
     public bool MovementEnabled { get; private set; } = true;
+    public TerrainType CurrentTerrainType { get; private set; } = TerrainType.Tee;
+    public TerrainProperties CurrentTerrainProperties { get; private set; } = TerrainDatabase.GetProperties(TerrainType.Tee);
 
     public event Action? BallStartedMoving;
     public event Action? BallStopped;
+    public event Action<TerrainType>? TerrainChanged;
 
     private float _activeFrictionMultiplier = 1.0f;
     private float _settleTimer;
@@ -53,7 +56,8 @@ public partial class BallController : Area2D
         ApplyBoundsBounce();
 
         var speed = Velocity.Length();
-        var deceleration = BaseFrictionPerSecond * _activeFrictionMultiplier * dt;
+        var terrainFriction = CurrentTerrainProperties.FrictionMultiplier;
+        var deceleration = BaseFrictionPerSecond * _activeFrictionMultiplier * terrainFriction * dt;
         var nextSpeed = Mathf.Max(speed - deceleration, 0.0f);
 
         if (nextSpeed <= 0.0f)
@@ -118,6 +122,18 @@ public partial class BallController : Area2D
     public void SetPlayableBounds(Rect2 bounds)
     {
         PlayableBounds = bounds;
+    }
+
+    public void SetTerrain(TerrainType terrainType)
+    {
+        if (terrainType == CurrentTerrainType)
+        {
+            return;
+        }
+
+        CurrentTerrainType = terrainType;
+        CurrentTerrainProperties = TerrainDatabase.GetProperties(terrainType);
+        TerrainChanged?.Invoke(terrainType);
     }
 
     public void StopBall()

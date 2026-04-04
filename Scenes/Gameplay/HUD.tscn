@@ -47,6 +47,10 @@ text = "Club: Driver"
 layout_mode = 2
 text = "Power: --"
 
+[node name="LieLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Lie: --"
+
 [node name="DistanceLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Distance to Cup: --"

@@ -7,6 +7,7 @@ public partial class GameplaySceneController : Node2D
     private BallController? _ballController;
     private ClubController? _clubController;
     private ShotController? _shotController;
+    private LieEvaluator? _lieEvaluator;
     private Control? _holeCompletePanel;
     private Label? _holeCompleteLabel;
 
@@ -19,6 +20,7 @@ public partial class GameplaySceneController : Node2D
         _ballController = GetNodeOrNull<BallController>("Ball");
         _clubController = GetNodeOrNull<ClubController>("ClubController");
         _shotController = GetNodeOrNull<ShotController>("ShotController");
+        _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
         _holeCompletePanel = GetNodeOrNull<Control>("HoleCompleteOverlay/PanelContainer");
         _holeCompleteLabel = GetNodeOrNull<Label>("HoleCompleteOverlay/PanelContainer/MarginContainer/VBoxContainer/HoleCompleteLabel");
 
@@ -39,9 +41,18 @@ public partial class GameplaySceneController : Node2D
             _ballController.SetPlayableBounds(_holeController.GetCourseBounds());
         }
 
-        if (_shotController != null && _ballController != null && _holeController != null && _hud != null && _clubController != null)
+        if (_lieEvaluator != null && _holeController != null)
         {
-            _shotController.Configure(_ballController, _holeController, _hud, _clubController);
+            var terrainRoot = _holeController.GetNodeOrNull<Node>("Visuals");
+            if (terrainRoot != null)
+            {
+                _lieEvaluator.Configure(terrainRoot, _holeController.GetCourseBounds());
+            }
+        }
+
+        if (_shotController != null && _ballController != null && _holeController != null && _hud != null && _clubController != null && _lieEvaluator != null)
+        {
+            _shotController.Configure(_ballController, _holeController, _hud, _clubController, _lieEvaluator);
         }
 
         InitializeHud();
@@ -55,6 +66,13 @@ public partial class GameplaySceneController : Node2D
         if (_hud == null || _holeController == null || _ballController == null || _holeController.IsHoleComplete)
         {
             return;
+        }
+
+        if (_lieEvaluator != null)
+        {
+            var lie = _lieEvaluator.EvaluateLie(_ballController.GlobalPosition);
+            _ballController.SetTerrain(lie);
+            _hud.SetLieType(lie);
         }
 
         _hud.SetDistanceToCup(_holeController.GetDistanceToCup(_ballController.GlobalPosition));
@@ -74,6 +92,13 @@ public partial class GameplaySceneController : Node2D
             clubName: _clubController.CurrentClub.Name,
             windText: "Aim: Left/Right | Club: Up/Down | Hold Space: Power"
         );
+
+        if (_lieEvaluator != null && _ballController != null)
+        {
+            var initialLie = _lieEvaluator.EvaluateLie(_ballController.GlobalPosition);
+            _ballController.SetTerrain(initialLie);
+            _hud.SetLieType(initialLie);
+        }
     }
 
     private void OnMainMenuRequested()

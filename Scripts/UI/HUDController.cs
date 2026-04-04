@@ -13,6 +13,7 @@ public partial class HUDController : Control
     private Label? _strokeLabel;
     private Label? _clubLabel;
     private Label? _powerLabel;
+    private Label? _lieLabel;
     private Label? _distanceLabel;
     private Label? _windLabel;
     private Button? _returnToMenuButton;
@@ -25,6 +26,7 @@ public partial class HUDController : Control
         _strokeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StrokeLabel");
         _clubLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ClubLabel");
         _powerLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/PowerLabel");
+        _lieLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/LieLabel");
         _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
@@ -99,6 +101,14 @@ public partial class HUDController : Control
         {
             var percentage = Mathf.RoundToInt(chargeRatio * 100.0f);
             _powerLabel.Text = $"Power: {percentage}% ({powerValue:0})";
+        }
+    }
+
+    public void SetLieType(TerrainType terrainType)
+    {
+        if (_lieLabel != null)
+        {
+            _lieLabel.Text = $"Lie: {terrainType}";
         }
     }
 

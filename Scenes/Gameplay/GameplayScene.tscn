@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Gameplay/GameplaySceneController.cs" id="1"]
 [ext_resource type="PackedScene" path="res://Scenes/Gameplay/HUD.tscn" id="2"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://Scenes/Gameplay/Ball.tscn" id="5"]
 [ext_resource type="Script" path="res://Scripts/Gameplay/ClubController.cs" id="6"]
 [ext_resource type="Script" path="res://Scripts/Gameplay/ShotController.cs" id="7"]
+[ext_resource type="Script" path="res://Scripts/Gameplay/LieEvaluator.cs" id="8"]
 
 [node name="GameplayScene" type="Node2D"]
 script = ExtResource("1")
@@ -26,6 +27,9 @@ script = ExtResource("6")
 
 [node name="ShotController" type="Node2D" parent="."]
 script = ExtResource("7")
+
+[node name="LieEvaluator" type="Node" parent="."]
+script = ExtResource("8")
 
 [node name="EffectsRoot" type="Node2D" parent="."]
 
