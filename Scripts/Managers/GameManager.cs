@@ -1,0 +1,169 @@
+using Godot;
+
+public enum GameState
+{
+    MainMenu,
+    LoadingHole,
+    InHole,
+    RecoveryPrompt,
+    HoleComplete,
+    Shop,
+    Scorecard,
+    RunComplete,
+    Paused
+}
+
+public partial class GameManager : Node
+{
+    public delegate void GameStateChangedHandler(GameState previousState, GameState newState);
+    public event GameStateChangedHandler? GameStateChanged;
+
+    public GameState CurrentState { get; private set; } = GameState.MainMenu;
+
+    private GameState _stateBeforePause = GameState.InHole;
+
+    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
+    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
+    private SceneRouter? SceneRouterSingleton => GetNodeOrNull<SceneRouter>("/root/SceneRouter");
+
+    public override void _Ready()
+    {
+        ChangeState(GameState.MainMenu);
+    }
+
+    public void ChangeState(GameState newState)
+    {
+        if (CurrentState == newState)
+        {
+            return;
+        }
+
+        var previous = CurrentState;
+        CurrentState = newState;
+        GameStateChanged?.Invoke(previous, newState);
+        GD.Print($"[GameManager] State changed: {previous} -> {newState}");
+    }
+
+    public void StartNewRun()
+    {
+        var runManager = RunManagerSingleton;
+        var sceneRouter = SceneRouterSingleton;
+
+        if (runManager == null || sceneRouter == null)
+        {
+            GD.PushError("[GameManager] Unable to start run. Missing RunManager or SceneRouter autoload.");
+            return;
+        }
+
+        var seed = (int)Time.GetUnixTimeFromSystem();
+        runManager.StartRun(seed);
+        SaveManagerSingleton?.SaveRun(runManager.BuildSaveData());
+
+        ChangeState(GameState.LoadingHole);
+        sceneRouter.GoToGameplay();
+        ChangeState(GameState.InHole);
+    }
+
+    public void ResumeRun()
+    {
+        var runManager = RunManagerSingleton;
+        var saveManager = SaveManagerSingleton;
+        var sceneRouter = SceneRouterSingleton;
+
+        if (runManager == null || saveManager == null || sceneRouter == null)
+        {
+            GD.PushError("[GameManager] Unable to resume run. Missing required autoload(s).");
+            return;
+        }
+
+        if (!saveManager.HasRunSave())
+        {
+            GD.Print("[GameManager] Resume requested with no save present.");
+            return;
+        }
+
+        var saveData = saveManager.LoadRun();
+        if (saveData == null)
+        {
+            GD.PushWarning("[GameManager] Save exists but could not be loaded. Staying in menu.");
+            return;
+        }
+
+        runManager.LoadFromSave(saveData);
+
+        ChangeState(GameState.LoadingHole);
+        sceneRouter.GoToGameplay();
+        ChangeState(GameState.InHole);
+    }
+
+    public void CompleteHole()
+    {
+        var runManager = RunManagerSingleton;
+        var sceneRouter = SceneRouterSingleton;
+
+        if (runManager == null || sceneRouter == null)
+        {
+            GD.PushError("[GameManager] Unable to complete hole. Missing RunManager or SceneRouter.");
+            return;
+        }
+
+        ChangeState(GameState.HoleComplete);
+
+        if (runManager.IsFinalHole())
+        {
+            CompleteRun();
+            return;
+        }
+
+        sceneRouter.GoToScorecard();
+        ChangeState(GameState.Scorecard);
+    }
+
+    public void CompleteRun()
+    {
+        SceneRouterSingleton?.GoToRunComplete();
+        ChangeState(GameState.RunComplete);
+    }
+
+    public void PauseGame()
+    {
+        if (CurrentState == GameState.Paused)
+        {
+            return;
+        }
+
+        _stateBeforePause = CurrentState;
+        ChangeState(GameState.Paused);
+        GetTree().Paused = true;
+    }
+
+    public void UnpauseGame()
+    {
+        if (CurrentState != GameState.Paused)
+        {
+            return;
+        }
+
+        GetTree().Paused = false;
+        ChangeState(_stateBeforePause);
+    }
+
+    public void SaveCurrentRunIfAvailable()
+    {
+        var runManager = RunManagerSingleton;
+        if (runManager == null)
+        {
+            return;
+        }
+
+        SaveManagerSingleton?.SaveRun(runManager.BuildSaveData());
+    }
+
+    public void GoToMainMenu()
+    {
+        SaveCurrentRunIfAvailable();
+        SceneRouterSingleton?.GoToMainMenu();
+        ChangeState(GameState.MainMenu);
+        GetTree().Paused = false;
+    }
+}
