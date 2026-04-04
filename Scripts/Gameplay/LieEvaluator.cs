@@ -22,25 +22,7 @@ public partial class LieEvaluator : Node
 
     public TerrainType EvaluateLie(Vector2 ballGlobalPosition)
     {
-        TerrainType lie;
-
-        if (!_playableBounds.HasPoint(ballGlobalPosition))
-        {
-            lie = TerrainType.OutOfBounds;
-        }
-        else
-        {
-            lie = TerrainType.Rough;
-            for (var i = 0; i < _regions.Count; i += 1)
-            {
-                var region = _regions[i];
-                if (region.ContainsGlobalPoint(ballGlobalPosition))
-                {
-                    lie = region.RegionTerrainType;
-                    break;
-                }
-            }
-        }
+        var lie = EvaluateTerrainAtPosition(ballGlobalPosition);
 
         if (lie != CurrentLie)
         {
@@ -49,6 +31,27 @@ public partial class LieEvaluator : Node
         }
 
         return CurrentLie;
+    }
+
+    public TerrainType EvaluateTerrainAtPosition(Vector2 globalPosition)
+    {
+        if (!_playableBounds.HasPoint(globalPosition))
+        {
+            return TerrainType.OutOfBounds;
+        }
+
+        var lie = TerrainType.Rough;
+        for (var i = 0; i < _regions.Count; i += 1)
+        {
+            var region = _regions[i];
+            if (region.ContainsGlobalPoint(globalPosition))
+            {
+                lie = region.RegionTerrainType;
+                break;
+            }
+        }
+
+        return lie;
     }
 
     private void RegisterRegionsRecursive(Node node)

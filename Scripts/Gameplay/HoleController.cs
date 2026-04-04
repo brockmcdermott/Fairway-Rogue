@@ -49,6 +49,16 @@ public partial class HoleController : Node2D
         LocalStrokeCount += 1;
     }
 
+    public void AddPenaltyStroke(int penaltyStrokes = 1)
+    {
+        if (IsHoleComplete)
+        {
+            return;
+        }
+
+        LocalStrokeCount += Mathf.Max(0, penaltyStrokes);
+    }
+
     public float GetDistanceToCup(Vector2 fromPosition)
     {
         return DistanceCalculator.DistanceToCup(fromPosition, CupPosition);

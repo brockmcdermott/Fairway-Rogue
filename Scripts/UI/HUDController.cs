@@ -16,6 +16,7 @@ public partial class HUDController : Control
     private Label? _lieLabel;
     private Label? _distanceLabel;
     private Label? _windLabel;
+    private Label? _statusLabel;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
 
@@ -29,6 +30,7 @@ public partial class HUDController : Control
         _lieLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/LieLabel");
         _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
+        _statusLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StatusLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
         _recoveryTestButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
 
@@ -118,6 +120,14 @@ public partial class HUDController : Control
         {
             _recoveryTestButton.Visible = visible;
             _recoveryTestButton.Disabled = !visible;
+        }
+    }
+
+    public void SetStatusMessage(string message)
+    {
+        if (_statusLabel != null)
+        {
+            _statusLabel.Text = $"Status: {message}";
         }
     }
 }

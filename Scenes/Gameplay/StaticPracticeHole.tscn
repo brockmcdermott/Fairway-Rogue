@@ -26,6 +26,11 @@ color = Color(0.835, 0.745, 0.475, 1)
 polygon = PackedVector2Array(770, 330, 845, 320, 900, 345, 910, 390, 875, 425, 805, 430, 760, 395)
 script = ExtResource("2")
 
+[node name="Water" type="Polygon2D" parent="Visuals"]
+color = Color(0.188, 0.525, 0.78, 1)
+polygon = PackedVector2Array(555, 295, 640, 275, 730, 292, 762, 350, 730, 408, 640, 425, 555, 405, 522, 350)
+script = ExtResource("2")
+
 [node name="Green" type="Polygon2D" parent="Visuals"]
 color = Color(0.576, 0.824, 0.4, 1)
 polygon = PackedVector2Array(1060, 270, 1120, 285, 1150, 330, 1150, 370, 1120, 415, 1060, 430, 1000, 415, 970, 370, 970, 330, 1000, 285)

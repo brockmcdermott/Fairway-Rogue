@@ -10,6 +10,7 @@ public partial class BallController : Area2D
     [Export] public float StopSpeedThreshold { get; set; } = 8.0f;
     [Export] public float StopSettleTime { get; set; } = 0.08f;
     [Export] public float BoundaryBounceDamping { get; set; } = 0.35f;
+    [Export] public bool EnableBoundsBounce { get; set; }
 
     [ExportGroup("Playable Bounds")]
     [Export] public Rect2 PlayableBounds { get; set; } = new Rect2(new Vector2(100, 100), new Vector2(1080, 520));
@@ -22,6 +23,8 @@ public partial class BallController : Area2D
 
     public event Action? BallStartedMoving;
     public event Action? BallStopped;
+    public event Action<Vector2>? ShotLaunched;
+    public event Action<TerrainType, Vector2>? HazardEntered;
     public event Action<TerrainType>? TerrainChanged;
 
     private float _activeFrictionMultiplier = 1.0f;
@@ -53,7 +56,10 @@ public partial class BallController : Area2D
         var dt = (float)delta;
 
         GlobalPosition += Velocity * dt;
-        ApplyBoundsBounce();
+        if (EnableBoundsBounce)
+        {
+            ApplyBoundsBounce();
+        }
 
         var speed = Velocity.Length();
         var terrainFriction = CurrentTerrainProperties.FrictionMultiplier;
@@ -96,11 +102,14 @@ public partial class BallController : Area2D
             return;
         }
 
+        var shotStartPosition = GlobalPosition;
+
         _activeFrictionMultiplier = Mathf.Max(0.1f, frictionMultiplier);
         Velocity = direction.Normalized() * clampedSpeed;
         IsMoving = true;
         _settleTimer = 0.0f;
 
+        ShotLaunched?.Invoke(shotStartPosition);
         BallStartedMoving?.Invoke();
     }
 
@@ -134,6 +143,11 @@ public partial class BallController : Area2D
         CurrentTerrainType = terrainType;
         CurrentTerrainProperties = TerrainDatabase.GetProperties(terrainType);
         TerrainChanged?.Invoke(terrainType);
+
+        if (terrainType == TerrainType.Water || terrainType == TerrainType.OutOfBounds)
+        {
+            HazardEntered?.Invoke(terrainType, GlobalPosition);
+        }
     }
 
     public void StopBall()

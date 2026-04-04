@@ -8,6 +8,7 @@ public partial class GameplaySceneController : Node2D
     private ClubController? _clubController;
     private ShotController? _shotController;
     private LieEvaluator? _lieEvaluator;
+    private HazardResolver? _hazardResolver;
     private Control? _holeCompletePanel;
     private Label? _holeCompleteLabel;
 
@@ -21,6 +22,7 @@ public partial class GameplaySceneController : Node2D
         _clubController = GetNodeOrNull<ClubController>("ClubController");
         _shotController = GetNodeOrNull<ShotController>("ShotController");
         _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
+        _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
         _holeCompletePanel = GetNodeOrNull<Control>("HoleCompleteOverlay/PanelContainer");
         _holeCompleteLabel = GetNodeOrNull<Label>("HoleCompleteOverlay/PanelContainer/MarginContainer/VBoxContainer/HoleCompleteLabel");
 
@@ -53,6 +55,11 @@ public partial class GameplaySceneController : Node2D
         if (_shotController != null && _ballController != null && _holeController != null && _hud != null && _clubController != null && _lieEvaluator != null)
         {
             _shotController.Configure(_ballController, _holeController, _hud, _clubController, _lieEvaluator);
+        }
+
+        if (_hazardResolver != null && _ballController != null && _holeController != null && _shotController != null && _hud != null && _lieEvaluator != null)
+        {
+            _hazardResolver.Configure(_ballController, _holeController, _shotController, _hud, _lieEvaluator);
         }
 
         InitializeHud();
@@ -92,6 +99,7 @@ public partial class GameplaySceneController : Node2D
             clubName: _clubController.CurrentClub.Name,
             windText: "Aim: Left/Right | Club: Up/Down | Hold Space: Power"
         );
+        _hud.SetStatusMessage("Ready for next shot.");
 
         if (_lieEvaluator != null && _ballController != null)
         {
@@ -126,6 +134,7 @@ public partial class GameplaySceneController : Node2D
         }
 
         _hud?.SetStrokeCount(strokes);
+        _hud?.SetStatusMessage("Hole complete.");
         GameManagerSingleton?.ChangeState(GameState.HoleComplete);
     }
 

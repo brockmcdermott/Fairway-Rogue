@@ -45,6 +45,18 @@ public partial class TerrainRegion : Polygon2D
         {
             RegionTerrainType = TerrainType.Green;
         }
+        else if (lowered.Contains("water"))
+        {
+            RegionTerrainType = TerrainType.Water;
+        }
+        else if (lowered.Contains("tree"))
+        {
+            RegionTerrainType = TerrainType.Trees;
+        }
+        else if (lowered.Contains("oob") || lowered.Contains("outofbounds"))
+        {
+            RegionTerrainType = TerrainType.OutOfBounds;
+        }
 
         if (Priority != 0)
         {
@@ -67,6 +79,15 @@ public partial class TerrainRegion : Polygon2D
                 break;
             case TerrainType.Rough:
                 Priority = 20;
+                break;
+            case TerrainType.Water:
+                Priority = 60;
+                break;
+            case TerrainType.Trees:
+                Priority = 55;
+                break;
+            case TerrainType.OutOfBounds:
+                Priority = 65;
                 break;
             default:
                 Priority = 10;
