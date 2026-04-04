@@ -12,6 +12,7 @@ public partial class HUDController : Control
     private Label? _parLabel;
     private Label? _strokeLabel;
     private Label? _clubLabel;
+    private Label? _distanceLabel;
     private Label? _windLabel;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
@@ -22,6 +23,7 @@ public partial class HUDController : Control
         _parLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ParLabel");
         _strokeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StrokeLabel");
         _clubLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ClubLabel");
+        _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
         _recoveryTestButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
@@ -70,6 +72,23 @@ public partial class HUDController : Control
         if (_strokeLabel != null)
         {
             _strokeLabel.Text = $"Strokes: {strokes}";
+        }
+    }
+
+    public void SetDistanceToCup(float distance)
+    {
+        if (_distanceLabel != null)
+        {
+            _distanceLabel.Text = $"Distance to Cup: {distance:0.0}";
+        }
+    }
+
+    public void SetRecoveryPromptVisible(bool visible)
+    {
+        if (_recoveryTestButton != null)
+        {
+            _recoveryTestButton.Visible = visible;
+            _recoveryTestButton.Disabled = !visible;
         }
     }
 }
