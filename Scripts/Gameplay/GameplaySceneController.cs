@@ -2,6 +2,13 @@ using Godot;
 
 public partial class GameplaySceneController : Node2D
 {
+    private static readonly int[] TemporaryParByHole =
+    {
+        4, 3, 5,
+        4, 4, 3,
+        5, 4, 4
+    };
+
     private HUDController? _hud;
     private HoleController? _holeController;
     private BallController? _ballController;
@@ -10,10 +17,9 @@ public partial class GameplaySceneController : Node2D
     private LieEvaluator? _lieEvaluator;
     private HazardResolver? _hazardResolver;
     private RecoveryDialogController? _recoveryDialog;
-    private Control? _holeCompletePanel;
-    private Label? _holeCompleteLabel;
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
+    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
 
     public override void _Ready()
     {
@@ -25,14 +31,14 @@ public partial class GameplaySceneController : Node2D
         _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
         _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
         _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("RecoveryDialog");
-        _holeCompletePanel = GetNodeOrNull<Control>("HoleCompleteOverlay/PanelContainer");
-        _holeCompleteLabel = GetNodeOrNull<Label>("HoleCompleteOverlay/PanelContainer/MarginContainer/VBoxContainer/HoleCompleteLabel");
 
         if (_hud != null)
         {
             _hud.MainMenuRequested += OnMainMenuRequested;
             _hud.SetRecoveryPromptVisible(false);
         }
+
+        ApplyTemporaryHoleConfiguration();
 
         if (_holeController != null)
         {
@@ -73,7 +79,6 @@ public partial class GameplaySceneController : Node2D
         }
 
         InitializeHud();
-        HideHoleCompleteMessage();
 
         GameManagerSingleton?.ChangeState(GameState.InHole);
     }
@@ -119,6 +124,32 @@ public partial class GameplaySceneController : Node2D
         }
     }
 
+    private void ApplyTemporaryHoleConfiguration()
+    {
+        if (_holeController == null)
+        {
+            return;
+        }
+
+        var run = RunManagerSingleton;
+        var holeIndex = run?.CurrentHoleIndex ?? _holeController.HoleNumber;
+        var resolvedHoleIndex = Mathf.Max(1, holeIndex);
+
+        _holeController.HoleNumber = resolvedHoleIndex;
+        _holeController.Par = GetTemporaryParForHole(resolvedHoleIndex);
+    }
+
+    private static int GetTemporaryParForHole(int holeIndex)
+    {
+        if (holeIndex <= 0)
+        {
+            return 4;
+        }
+
+        var arrayIndex = (holeIndex - 1) % TemporaryParByHole.Length;
+        return TemporaryParByHole[arrayIndex];
+    }
+
     private void OnMainMenuRequested()
     {
         GameManagerSingleton?.GoToMainMenu();
@@ -139,42 +170,15 @@ public partial class GameplaySceneController : Node2D
         _hazardResolver?.ResolvePlayFromLieChoice();
     }
 
-    private void OnHoleCompleted(int strokes)
+    private void OnHoleCompleted(HoleResultData holeResult)
     {
         _shotController?.SetInputEnabled(false);
         _ballController?.SetMovementEnabled(false);
         _recoveryDialog?.HideDialog();
 
-        if (_holeCompleteLabel != null)
-        {
-            _holeCompleteLabel.Text =
-                "Hole Complete (Placeholder)\n" +
-                $"Strokes: {strokes}\n" +
-                "Return to menu to restart this practice hole.";
-            _holeCompleteLabel.Visible = true;
-        }
-
-        if (_holeCompletePanel != null)
-        {
-            _holeCompletePanel.Visible = true;
-        }
-
-        _hud?.SetStrokeCount(strokes);
-        _hud?.SetStatusMessage("Hole complete.");
-        GameManagerSingleton?.ChangeState(GameState.HoleComplete);
-    }
-
-    private void HideHoleCompleteMessage()
-    {
-        if (_holeCompletePanel != null)
-        {
-            _holeCompletePanel.Visible = false;
-        }
-
-        if (_holeCompleteLabel != null)
-        {
-            _holeCompleteLabel.Visible = false;
-        }
+        _hud?.SetStrokeCount(holeResult.Strokes);
+        _hud?.SetStatusMessage($"Hole complete: {holeResult.Label} ({holeResult.RelativeScoreText}).");
+        GameManagerSingleton?.SubmitHoleResult(holeResult);
     }
 
     public override void _ExitTree()

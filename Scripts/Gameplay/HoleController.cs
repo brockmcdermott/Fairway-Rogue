@@ -8,11 +8,12 @@ public partial class HoleController : Node2D
 
     public int LocalStrokeCount { get; private set; }
     public bool IsHoleComplete { get; private set; }
+    public int ScoreRelativeToPar => LocalStrokeCount - Par;
 
     public Vector2 TeePosition => _teeMarker?.GlobalPosition ?? GlobalPosition;
     public Vector2 CupPosition => _cupArea?.GlobalPosition ?? GlobalPosition;
 
-    public event Action<int>? HoleCompleted;
+    public event Action<HoleResultData>? HoleCompleted;
 
     private Marker2D? _teeMarker;
     private Area2D? _cupArea;
@@ -57,6 +58,16 @@ public partial class HoleController : Node2D
         }
 
         LocalStrokeCount += Mathf.Max(0, penaltyStrokes);
+    }
+
+    public HoleResultData BuildHoleResult()
+    {
+        return new HoleResultData
+        {
+            HoleNumber = Mathf.Max(1, HoleNumber),
+            Par = Mathf.Max(1, Par),
+            Strokes = Mathf.Max(0, LocalStrokeCount)
+        };
     }
 
     public float GetDistanceToCup(Vector2 fromPosition)
@@ -116,7 +127,8 @@ public partial class HoleController : Node2D
     private void CompleteHole()
     {
         IsHoleComplete = true;
-        HoleCompleted?.Invoke(LocalStrokeCount);
+        var result = BuildHoleResult();
+        HoleCompleted?.Invoke(result);
         GD.Print($"[HoleController] Hole complete. Hole {HoleNumber}, strokes: {LocalStrokeCount}");
     }
 }

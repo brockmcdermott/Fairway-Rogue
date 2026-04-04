@@ -56,7 +56,7 @@ public partial class GameManager : Node
         }
 
         var seed = (int)Time.GetUnixTimeFromSystem();
-        runManager.StartRun(seed);
+        runManager.StartRun(seed, RunManager.DefaultTotalHoles);
         SaveManagerSingleton?.SaveRun(runManager.BuildSaveData());
 
         ChangeState(GameState.LoadingHole);
@@ -119,10 +119,50 @@ public partial class GameManager : Node
         ChangeState(GameState.Scorecard);
     }
 
+    public void SubmitHoleResult(HoleResultData holeResult)
+    {
+        var runManager = RunManagerSingleton;
+        if (runManager == null)
+        {
+            GD.PushError("[GameManager] Cannot submit hole result. Missing RunManager.");
+            return;
+        }
+
+        runManager.RecordHoleResult(holeResult);
+        runManager.AwardCurrency(CalculatePlaceholderHoleReward(holeResult));
+        SaveCurrentRunIfAvailable();
+
+        CompleteHole();
+    }
+
     public void CompleteRun()
     {
         SceneRouterSingleton?.GoToRunComplete();
         ChangeState(GameState.RunComplete);
+    }
+
+    public void ContinueRunToNextHole()
+    {
+        var runManager = RunManagerSingleton;
+        var sceneRouter = SceneRouterSingleton;
+        if (runManager == null || sceneRouter == null)
+        {
+            GD.PushError("[GameManager] Unable to continue run. Missing RunManager or SceneRouter.");
+            return;
+        }
+
+        if (runManager.IsFinalHole())
+        {
+            CompleteRun();
+            return;
+        }
+
+        runManager.AdvanceToNextHole();
+        SaveCurrentRunIfAvailable();
+
+        ChangeState(GameState.LoadingHole);
+        sceneRouter.GoToGameplay();
+        ChangeState(GameState.InHole);
     }
 
     public void PauseGame()
@@ -165,5 +205,20 @@ public partial class GameManager : Node
         SceneRouterSingleton?.GoToMainMenu();
         ChangeState(GameState.MainMenu);
         GetTree().Paused = false;
+    }
+
+    private static int CalculatePlaceholderHoleReward(HoleResultData holeResult)
+    {
+        var baseReward = 8 + Mathf.Max(1, holeResult.Par) * 2;
+        var performanceBonus = holeResult.ScoreRelativeToPar switch
+        {
+            <= -2 => 8,
+            -1 => 5,
+            0 => 3,
+            1 => 1,
+            _ => 0
+        };
+
+        return Mathf.Max(1, baseReward + performanceBonus);
     }
 }

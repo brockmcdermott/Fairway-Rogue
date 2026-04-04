@@ -3,6 +3,7 @@ using Godot;
 public partial class RunCompleteController : Control
 {
     private Label? _summaryLabel;
+    private Label? _historyLabel;
     private Button? _newRunButton;
     private Button? _mainMenuButton;
 
@@ -13,6 +14,7 @@ public partial class RunCompleteController : Control
     public override void _Ready()
     {
         _summaryLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel");
+        _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryLabel");
         _newRunButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/NewRunButton");
         _mainMenuButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/MainMenuButton");
 
@@ -46,15 +48,44 @@ public partial class RunCompleteController : Control
         }
 
         var relative = run.GetScoreRelativeToPar();
-        _summaryLabel.Text =
-            "Run Complete (Placeholder)\n" +
-            $"Total Strokes: {run.TotalStrokes}\n" +
-            $"Relative to Par: {relative}";
+        var relativeText = HoleResultData.FormatRelativeScore(relative);
+        var label = HoleResultData.GetScoreLabel(relative);
 
-        var highScore = SaveManagerSingleton?.LoadHighScore() ?? int.MaxValue;
-        if (relative < highScore)
+        var hasHighScore = SaveManagerSingleton?.HasHighScoreSave() ?? false;
+        var bestScore = hasHighScore ? (SaveManagerSingleton?.LoadHighScore() ?? relative) : relative;
+        var isNewBest = !hasHighScore || relative < bestScore;
+        if (isNewBest)
         {
-            SaveManagerSingleton?.SaveHighScore(relative);
+            bestScore = relative;
+            SaveManagerSingleton?.SaveHighScore(bestScore);
+        }
+
+        _summaryLabel.Text =
+            "Run Complete\n" +
+            $"Holes: {run.HolesCompleted}/{run.TotalHoles}\n" +
+            $"Total Strokes: {run.TotalStrokes}\n" +
+            $"Total Par: {run.TotalPar}\n" +
+            $"Final Score: {relativeText} ({label})\n" +
+            $"Best Score: {HoleResultData.FormatRelativeScore(bestScore)}" +
+            (isNewBest ? " (New Best)" : string.Empty);
+
+        if (_historyLabel != null)
+        {
+            if (run.HoleResults.Count == 0)
+            {
+                _historyLabel.Text = "No hole history available.";
+            }
+            else
+            {
+                var lines = "";
+                for (var i = 0; i < run.HoleResults.Count; i += 1)
+                {
+                    var result = run.HoleResults[i];
+                    lines += $"H{result.HoleNumber}: {result.Strokes} on Par {result.Par} ({result.RelativeScoreText}, {result.Label})\n";
+                }
+
+                _historyLabel.Text = lines.TrimEnd('\n');
+            }
         }
     }
 

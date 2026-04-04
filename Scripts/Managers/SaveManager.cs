@@ -28,6 +28,11 @@ public partial class SaveManager : Node
         WriteJson(HighScorePath, score);
     }
 
+    public bool HasHighScoreSave()
+    {
+        return FileAccess.FileExists(HighScorePath);
+    }
+
     public int LoadHighScore()
     {
         var score = ReadJson<int?>(HighScorePath);

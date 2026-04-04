@@ -3,19 +3,22 @@ using Godot;
 
 public partial class RunManager : Node
 {
+    public const int DefaultTotalHoles = 9;
+
     public int CurrentHoleIndex { get; private set; } = 1;
-    public int TotalHoles { get; private set; } = 9;
+    public int TotalHoles { get; private set; } = DefaultTotalHoles;
     public int Currency { get; private set; }
     public List<HoleResultData> HoleResults { get; private set; } = new();
     public int TotalStrokes { get; private set; }
     public int TotalPar { get; private set; }
     public int Seed { get; private set; }
+    public int HolesCompleted => HoleResults.Count;
 
-    public void StartRun(int seed)
+    public void StartRun(int seed, int totalHoles = DefaultTotalHoles)
     {
         Seed = seed;
         CurrentHoleIndex = 1;
-        TotalHoles = 9;
+        TotalHoles = Mathf.Max(1, totalHoles);
         Currency = 0;
         TotalStrokes = 0;
         TotalPar = 0;
@@ -45,8 +48,23 @@ public partial class RunManager : Node
 
     public void RecordHoleResult(HoleResultData result)
     {
-        HoleResults.Add(result);
-        TotalPar += result.Par;
+        if (result == null)
+        {
+            return;
+        }
+
+        var existingIndex = HoleResults.FindIndex(existing => existing.HoleNumber == result.HoleNumber);
+        if (existingIndex >= 0)
+        {
+            HoleResults[existingIndex] = result;
+        }
+        else
+        {
+            HoleResults.Add(result);
+        }
+
+        HoleResults.Sort((left, right) => left.HoleNumber.CompareTo(right.HoleNumber));
+        RecalculateTotals();
     }
 
     public bool IsFinalHole()
@@ -56,7 +74,7 @@ public partial class RunManager : Node
 
     public void AdvanceToNextHole()
     {
-        if (!IsFinalHole())
+        if (CurrentHoleIndex < TotalHoles)
         {
             CurrentHoleIndex += 1;
         }
@@ -85,10 +103,38 @@ public partial class RunManager : Node
     {
         Seed = data.Seed;
         CurrentHoleIndex = data.CurrentHoleIndex > 0 ? data.CurrentHoleIndex : 1;
-        TotalHoles = data.TotalHoles > 0 ? data.TotalHoles : 9;
+        TotalHoles = data.TotalHoles > 0 ? data.TotalHoles : DefaultTotalHoles;
         Currency = Mathf.Max(data.Currency, 0);
-        TotalStrokes = Mathf.Max(data.TotalStrokes, 0);
-        TotalPar = Mathf.Max(data.TotalPar, 0);
         HoleResults = data.HoleResults ?? new List<HoleResultData>();
+        HoleResults.Sort((left, right) => left.HoleNumber.CompareTo(right.HoleNumber));
+
+        RecalculateTotals();
+        CurrentHoleIndex = Mathf.Clamp(CurrentHoleIndex, 1, TotalHoles);
+    }
+
+    public HoleResultData? GetLatestHoleResult()
+    {
+        if (HoleResults.Count == 0)
+        {
+            return null;
+        }
+
+        return HoleResults[HoleResults.Count - 1];
+    }
+
+    private void RecalculateTotals()
+    {
+        var strokes = 0;
+        var par = 0;
+
+        for (var i = 0; i < HoleResults.Count; i += 1)
+        {
+            var result = HoleResults[i];
+            strokes += Mathf.Max(0, result.Strokes);
+            par += Mathf.Max(0, result.Par);
+        }
+
+        TotalStrokes = strokes;
+        TotalPar = par;
     }
 }
