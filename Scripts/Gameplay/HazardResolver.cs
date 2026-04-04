@@ -1,3 +1,4 @@
+using System;
 using Godot;
 using Godot.Collections;
 
@@ -8,6 +9,9 @@ public partial class HazardResolver : Node
     [Export] public float RecoverySearchMaxRadius { get; set; } = 220.0f;
     [Export] public int RecoverySearchAngleSamples { get; set; } = 20;
     [Export] public float RecoveryCollisionRadiusScale { get; set; } = 0.9f;
+    [Export] public float TreeDropMaxRadius { get; set; } = 150.0f;
+
+    public event Action? TreeRecoveryPromptRequested;
 
     private BallController? _ball;
     private HoleController? _hole;
@@ -16,11 +20,15 @@ public partial class HazardResolver : Node
     private LieEvaluator? _lieEvaluator;
 
     private bool _isResolvingHazard;
+    private bool _recoveryPromptActive;
     private Vector2 _previousShotPosition = Vector2.Zero;
     private Vector2 _lastSafePosition = Vector2.Zero;
 
+    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
+
     public Vector2 PreviousShotPosition => _previousShotPosition;
     public Vector2 LastSafePosition => _lastSafePosition;
+    public bool IsRecoveryPromptActive => _recoveryPromptActive;
 
     public void Configure(
         BallController ball,
@@ -40,8 +48,10 @@ public partial class HazardResolver : Node
         _previousShotPosition = ball.GlobalPosition;
         _lastSafePosition = ball.GlobalPosition;
         _isResolvingHazard = false;
+        _recoveryPromptActive = false;
 
         ball.ShotLaunched += OnShotLaunched;
+        ball.BallStopped += OnBallStopped;
         ball.TerrainChanged += OnTerrainChanged;
         ball.HazardEntered += OnHazardEntered;
     }
@@ -52,6 +62,41 @@ public partial class HazardResolver : Node
         base._ExitTree();
     }
 
+    public void ResolvePlayFromLieChoice()
+    {
+        if (!_recoveryPromptActive || _shotController == null || _hud == null)
+        {
+            return;
+        }
+
+        _hud.SetStatusMessage("Play from lie selected. No penalty.");
+        EndRecoveryPrompt();
+    }
+
+    public void ResolveTakeDropChoice()
+    {
+        if (!_recoveryPromptActive || _ball == null || _hole == null || _shotController == null || _hud == null || _lieEvaluator == null)
+        {
+            return;
+        }
+
+        _isResolvingHazard = true;
+
+        _hole.AddPenaltyStroke(1);
+        var dropPosition = FindTreeDropPosition(_ball.GlobalPosition);
+        _ball.ResetAt(dropPosition);
+
+        var droppedLie = _lieEvaluator.EvaluateLie(dropPosition);
+        _ball.SetTerrain(droppedLie);
+        _lastSafePosition = dropPosition;
+
+        _hud.SetStrokeCount(_hole.LocalStrokeCount);
+        _hud.SetStatusMessage("Take a drop selected: +1 penalty stroke.");
+
+        _isResolvingHazard = false;
+        EndRecoveryPrompt();
+    }
+
     private void DisconnectBallSignals()
     {
         if (_ball == null)
@@ -60,6 +105,7 @@ public partial class HazardResolver : Node
         }
 
         _ball.ShotLaunched -= OnShotLaunched;
+        _ball.BallStopped -= OnBallStopped;
         _ball.TerrainChanged -= OnTerrainChanged;
         _ball.HazardEntered -= OnHazardEntered;
     }
@@ -68,6 +114,27 @@ public partial class HazardResolver : Node
     {
         _previousShotPosition = shotStartPosition;
         _lastSafePosition = shotStartPosition;
+    }
+
+    private void OnBallStopped()
+    {
+        if (_isResolvingHazard || _recoveryPromptActive || _ball == null || _hole == null || _shotController == null || _hud == null || _lieEvaluator == null)
+        {
+            return;
+        }
+
+        if (_hole.IsHoleComplete || _ball.IsMoving)
+        {
+            return;
+        }
+
+        if (_lieEvaluator.IsObstructedTreeLie(_ball.GlobalPosition, _hole.CupPosition))
+        {
+            BeginTreeRecoveryPrompt();
+            return;
+        }
+
+        _hud.SetStatusMessage("Ready for next shot.");
     }
 
     private void OnTerrainChanged(TerrainType terrainType)
@@ -91,7 +158,7 @@ public partial class HazardResolver : Node
 
     private void OnHazardEntered(TerrainType terrainType, Vector2 entryPosition)
     {
-        if (_isResolvingHazard || _ball == null || _hole == null || _shotController == null || _hud == null || _lieEvaluator == null || _hole.IsHoleComplete)
+        if (_isResolvingHazard || _recoveryPromptActive || _ball == null || _hole == null || _shotController == null || _hud == null || _lieEvaluator == null || _hole.IsHoleComplete)
         {
             return;
         }
@@ -121,6 +188,97 @@ public partial class HazardResolver : Node
 
         _isResolvingHazard = false;
         _shotController.SetInputEnabled(true);
+    }
+
+    private void BeginTreeRecoveryPrompt()
+    {
+        if (_shotController == null || _hud == null)
+        {
+            return;
+        }
+
+        _recoveryPromptActive = true;
+        _shotController.SetInputEnabled(false);
+        _hud.SetStatusMessage("Obstructed lie in trees. Choose recovery.");
+        GameManagerSingleton?.ChangeState(GameState.RecoveryPrompt);
+        TreeRecoveryPromptRequested?.Invoke();
+    }
+
+    private void EndRecoveryPrompt()
+    {
+        if (_shotController == null)
+        {
+            return;
+        }
+
+        _recoveryPromptActive = false;
+        _shotController.SetInputEnabled(true);
+        GameManagerSingleton?.ChangeState(GameState.InHole);
+    }
+
+    private Vector2 FindTreeDropPosition(Vector2 obstructedPosition)
+    {
+        if (_hole == null)
+        {
+            return obstructedPosition;
+        }
+
+        if (TrySearchForTreeDropAround(obstructedPosition, out var nearObstructedLie))
+        {
+            return nearObstructedLie;
+        }
+
+        if (TrySearchForTreeDropAround(_lastSafePosition, out var nearLastSafe))
+        {
+            return nearLastSafe;
+        }
+
+        if (TrySearchForTreeDropAround(_previousShotPosition, out var nearPrevious))
+        {
+            return nearPrevious;
+        }
+
+        if (IsSafeRecoveryPoint(_lastSafePosition))
+        {
+            return _lastSafePosition;
+        }
+
+        return FindRecoveryPosition(obstructedPosition);
+    }
+
+    private bool TrySearchForTreeDropAround(Vector2 center, out Vector2 dropPoint)
+    {
+        dropPoint = center;
+
+        if (IsValidTreeDropPoint(center))
+        {
+            dropPoint = center;
+            return true;
+        }
+
+        var sampleCount = Mathf.Max(8, RecoverySearchAngleSamples);
+        var radiusStep = Mathf.Max(8.0f, RecoverySearchStep);
+        var maxRadius = Mathf.Max(radiusStep, TreeDropMaxRadius);
+
+        for (var radius = radiusStep; radius <= maxRadius; radius += radiusStep)
+        {
+            for (var i = 0; i < sampleCount; i += 1)
+            {
+                var angle = Mathf.Tau * i / sampleCount;
+                var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+                var candidate = center + offset;
+
+                if (!IsValidTreeDropPoint(candidate))
+                {
+                    continue;
+                }
+
+                dropPoint = candidate;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private Vector2 FindRecoveryPosition(Vector2 hazardEntryPosition)
@@ -163,7 +321,7 @@ public partial class HazardResolver : Node
         return _hole.TeePosition;
     }
 
-    private bool TrySearchAround(Vector2 center, out Vector2 safePoint)
+    private bool TrySearchAround(Vector2 center, out Vector2 safePoint, float maxRadiusOverride = -1.0f)
     {
         safePoint = center;
 
@@ -175,7 +333,8 @@ public partial class HazardResolver : Node
 
         var sampleCount = Mathf.Max(8, RecoverySearchAngleSamples);
         var radiusStep = Mathf.Max(8.0f, RecoverySearchStep);
-        var maxRadius = Mathf.Max(radiusStep, RecoverySearchMaxRadius);
+        var configuredMaxRadius = maxRadiusOverride > 0.0f ? maxRadiusOverride : RecoverySearchMaxRadius;
+        var maxRadius = Mathf.Max(radiusStep, configuredMaxRadius);
 
         for (var radius = radiusStep; radius <= maxRadius; radius += radiusStep)
         {
@@ -212,6 +371,21 @@ public partial class HazardResolver : Node
         }
 
         return !IsBlockedByCollision(point);
+    }
+
+    private bool IsValidTreeDropPoint(Vector2 point)
+    {
+        if (_lieEvaluator == null || _hole == null)
+        {
+            return false;
+        }
+
+        if (!IsSafeRecoveryPoint(point))
+        {
+            return false;
+        }
+
+        return !_lieEvaluator.IsObstructedTreeLie(point, _hole.CupPosition);
     }
 
     private bool IsSafeTerrain(TerrainType terrainType)

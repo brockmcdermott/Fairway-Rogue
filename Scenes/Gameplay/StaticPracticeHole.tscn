@@ -1,10 +1,16 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Gameplay/HoleController.cs" id="1"]
 [ext_resource type="Script" path="res://Scripts/Gameplay/TerrainRegion.cs" id="2"]
 
 [sub_resource type="CircleShape2D" id="1"]
 radius = 10.0
+
+[sub_resource type="CircleShape2D" id="2"]
+radius = 20.0
+
+[sub_resource type="CircleShape2D" id="3"]
+radius = 17.0
 
 [node name="StaticPracticeHole" type="Node2D"]
 script = ExtResource("1")
@@ -31,6 +37,11 @@ color = Color(0.188, 0.525, 0.78, 1)
 polygon = PackedVector2Array(555, 295, 640, 275, 730, 292, 762, 350, 730, 408, 640, 425, 555, 405, 522, 350)
 script = ExtResource("2")
 
+[node name="TreesCluster" type="Polygon2D" parent="Visuals"]
+color = Color(0.243, 0.4, 0.196, 1)
+polygon = PackedVector2Array(740, 210, 910, 208, 955, 258, 930, 330, 770, 332, 725, 275)
+script = ExtResource("2")
+
 [node name="Green" type="Polygon2D" parent="Visuals"]
 color = Color(0.576, 0.824, 0.4, 1)
 polygon = PackedVector2Array(1060, 270, 1120, 285, 1150, 330, 1150, 370, 1120, 415, 1060, 430, 1000, 415, 970, 370, 970, 330, 1000, 285)
@@ -46,6 +57,49 @@ default_color = Color(0.93, 0.22, 0.22, 1)
 width = 4.0
 closed = true
 points = PackedVector2Array(100, 100, 1180, 100, 1180, 620, 100, 620)
+
+[node name="TreeCanopies" type="Node2D" parent="Visuals"]
+
+[node name="TreeA" type="Polygon2D" parent="Visuals/TreeCanopies"]
+position = Vector2(776, 250)
+color = Color(0.157, 0.329, 0.141, 1)
+polygon = PackedVector2Array(0, -24, 16, -16, 24, 0, 16, 16, 0, 24, -16, 16, -24, 0, -16, -16)
+
+[node name="TreeB" type="Polygon2D" parent="Visuals/TreeCanopies"]
+position = Vector2(835, 282)
+color = Color(0.149, 0.302, 0.129, 1)
+polygon = PackedVector2Array(0, -22, 14, -14, 22, 0, 14, 14, 0, 22, -14, 14, -22, 0, -14, -14)
+
+[node name="TreeC" type="Polygon2D" parent="Visuals/TreeCanopies"]
+position = Vector2(895, 252)
+color = Color(0.157, 0.329, 0.141, 1)
+polygon = PackedVector2Array(0, -24, 16, -16, 24, 0, 16, 16, 0, 24, -16, 16, -24, 0, -16, -16)
+
+[node name="TreeObstacles" type="Node2D" parent="Visuals"]
+
+[node name="TreeObstacleA" type="StaticBody2D" parent="Visuals/TreeObstacles" groups=["tree_obstacle"]]
+position = Vector2(776, 250)
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visuals/TreeObstacles/TreeObstacleA"]
+shape = SubResource("2")
+
+[node name="TreeObstacleB" type="StaticBody2D" parent="Visuals/TreeObstacles" groups=["tree_obstacle"]]
+position = Vector2(835, 282)
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visuals/TreeObstacles/TreeObstacleB"]
+shape = SubResource("3")
+
+[node name="TreeObstacleC" type="StaticBody2D" parent="Visuals/TreeObstacles" groups=["tree_obstacle"]]
+position = Vector2(895, 252)
+collision_layer = 2
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Visuals/TreeObstacles/TreeObstacleC"]
+shape = SubResource("2")
 
 [node name="BallSpawn" type="Marker2D" parent="."]
 position = Vector2(190, 350)

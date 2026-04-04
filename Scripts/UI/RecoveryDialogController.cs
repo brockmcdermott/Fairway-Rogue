@@ -2,6 +2,8 @@ using Godot;
 
 public partial class RecoveryDialogController : Control
 {
+    private const string DefaultBodyText = "Choose a recovery option. Taking a drop adds 1 penalty stroke.";
+
     public delegate void DropChosenHandler();
     public event DropChosenHandler? DropChosen;
 
@@ -10,11 +12,13 @@ public partial class RecoveryDialogController : Control
 
     private Button? _dropButton;
     private Button? _playFromLieButton;
+    private Label? _bodyLabel;
 
     public override void _Ready()
     {
         _dropButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/DropButton");
         _playFromLieButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/PlayFromLieButton");
+        _bodyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BodyLabel");
 
         if (_dropButton != null)
         {
@@ -29,9 +33,15 @@ public partial class RecoveryDialogController : Control
         Visible = false;
     }
 
-    public void ShowDialog()
+    public void ShowDialog(string? bodyText = null)
     {
+        if (_bodyLabel != null)
+        {
+            _bodyLabel.Text = string.IsNullOrWhiteSpace(bodyText) ? DefaultBodyText : bodyText;
+        }
+
         Visible = true;
+        _dropButton?.GrabFocus();
     }
 
     public void HideDialog()

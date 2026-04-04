@@ -9,6 +9,7 @@ public partial class GameplaySceneController : Node2D
     private ShotController? _shotController;
     private LieEvaluator? _lieEvaluator;
     private HazardResolver? _hazardResolver;
+    private RecoveryDialogController? _recoveryDialog;
     private Control? _holeCompletePanel;
     private Label? _holeCompleteLabel;
 
@@ -23,6 +24,7 @@ public partial class GameplaySceneController : Node2D
         _shotController = GetNodeOrNull<ShotController>("ShotController");
         _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
         _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
+        _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("RecoveryDialog");
         _holeCompletePanel = GetNodeOrNull<Control>("HoleCompleteOverlay/PanelContainer");
         _holeCompleteLabel = GetNodeOrNull<Label>("HoleCompleteOverlay/PanelContainer/MarginContainer/VBoxContainer/HoleCompleteLabel");
 
@@ -35,6 +37,13 @@ public partial class GameplaySceneController : Node2D
         if (_holeController != null)
         {
             _holeController.HoleCompleted += OnHoleCompleted;
+        }
+
+        if (_recoveryDialog != null)
+        {
+            _recoveryDialog.DropChosen += OnTakeDropChosen;
+            _recoveryDialog.PlayFromLieChosen += OnPlayFromLieChosen;
+            _recoveryDialog.HideDialog();
         }
 
         if (_holeController != null && _ballController != null)
@@ -60,6 +69,7 @@ public partial class GameplaySceneController : Node2D
         if (_hazardResolver != null && _ballController != null && _holeController != null && _shotController != null && _hud != null && _lieEvaluator != null)
         {
             _hazardResolver.Configure(_ballController, _holeController, _shotController, _hud, _lieEvaluator);
+            _hazardResolver.TreeRecoveryPromptRequested += OnTreeRecoveryPromptRequested;
         }
 
         InitializeHud();
@@ -114,10 +124,26 @@ public partial class GameplaySceneController : Node2D
         GameManagerSingleton?.GoToMainMenu();
     }
 
+    private void OnTreeRecoveryPromptRequested()
+    {
+        _recoveryDialog?.ShowDialog("Ball is obstructed in the trees.\nTake a drop for +1 stroke or play from lie.");
+    }
+
+    private void OnTakeDropChosen()
+    {
+        _hazardResolver?.ResolveTakeDropChoice();
+    }
+
+    private void OnPlayFromLieChosen()
+    {
+        _hazardResolver?.ResolvePlayFromLieChoice();
+    }
+
     private void OnHoleCompleted(int strokes)
     {
         _shotController?.SetInputEnabled(false);
         _ballController?.SetMovementEnabled(false);
+        _recoveryDialog?.HideDialog();
 
         if (_holeCompleteLabel != null)
         {
@@ -149,5 +175,26 @@ public partial class GameplaySceneController : Node2D
         {
             _holeCompleteLabel.Visible = false;
         }
+    }
+
+    public override void _ExitTree()
+    {
+        if (_holeController != null)
+        {
+            _holeController.HoleCompleted -= OnHoleCompleted;
+        }
+
+        if (_recoveryDialog != null)
+        {
+            _recoveryDialog.DropChosen -= OnTakeDropChosen;
+            _recoveryDialog.PlayFromLieChosen -= OnPlayFromLieChosen;
+        }
+
+        if (_hazardResolver != null)
+        {
+            _hazardResolver.TreeRecoveryPromptRequested -= OnTreeRecoveryPromptRequested;
+        }
+
+        base._ExitTree();
     }
 }
