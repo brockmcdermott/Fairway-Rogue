@@ -35,25 +35,59 @@ theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Shop (Placeholder)"
+text = "Pro Shop"
 horizontal_alignment = 1
 
 [node name="CurrencyLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Currency: 0"
 
-[node name="BodyLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="ActiveBallLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Upgrade purchasing will be implemented in a later prompt."
+text = "Active Ball: All-Around Ball"
+
+[node name="BallRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BallSelectTitle" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BallRow"]
+layout_mode = 2
+text = "Equip Ball:"
+
+[node name="BallSelect" type="OptionButton" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BallRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="UpgradeListTitle" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Available Upgrades"
+
+[node name="UpgradeList" type="ItemList" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(620, 180)
+layout_mode = 2
+allow_reselect = true
+
+[node name="UpgradeDetailsLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Select an upgrade to view details."
+autowrap_mode = 3
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Status: Ready"
 autowrap_mode = 3
 
 [node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
+[node name="PurchaseButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+text = "Purchase Selected"
+
 [node name="ContinueButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2
-text = "Continue"
+text = "Continue Run"
 
 [node name="MainMenuButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2

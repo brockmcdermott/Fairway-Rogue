@@ -11,4 +11,5 @@ public class RunSaveData
     public int TotalStrokes { get; set; }
     public int TotalPar { get; set; }
     public List<HoleResultData> HoleResults { get; set; } = new();
+    public PlayerLoadout CurrentLoadout { get; set; } = PlayerLoadout.CreateDefault();
 }

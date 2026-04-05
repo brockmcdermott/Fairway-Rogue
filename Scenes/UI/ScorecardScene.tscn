@@ -59,6 +59,10 @@ theme_override_constants/separation = 8
 layout_mode = 2
 text = "Next Hole"
 
+[node name="ShopButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
+layout_mode = 2
+text = "Visit Shop"
+
 [node name="MainMenuButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2
 text = "Main Menu"

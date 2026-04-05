@@ -6,6 +6,7 @@ public partial class ScorecardController : Control
     private Label? _totalsLabel;
     private Label? _historyLabel;
     private Button? _nextHoleButton;
+    private Button? _shopButton;
     private Button? _mainMenuButton;
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
@@ -17,6 +18,7 @@ public partial class ScorecardController : Control
         _totalsLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/TotalsLabel");
         _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryLabel");
         _nextHoleButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/NextHoleButton");
+        _shopButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/ShopButton");
         _mainMenuButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/MainMenuButton");
 
         if (_nextHoleButton != null)
@@ -27,6 +29,11 @@ public partial class ScorecardController : Control
         if (_mainMenuButton != null)
         {
             _mainMenuButton.Pressed += OnMainMenuPressed;
+        }
+
+        if (_shopButton != null)
+        {
+            _shopButton.Pressed += OnShopPressed;
         }
 
         GameManagerSingleton?.ChangeState(GameState.Scorecard);
@@ -51,6 +58,12 @@ public partial class ScorecardController : Control
         {
             var canContinue = latest != null && !run.IsFinalHole();
             _nextHoleButton.Disabled = !canContinue;
+        }
+
+        if (_shopButton != null)
+        {
+            var canUseShop = latest != null && !run.IsFinalHole();
+            _shopButton.Disabled = !canUseShop;
         }
 
         if (_holeSummaryLabel != null)
@@ -105,5 +118,10 @@ public partial class ScorecardController : Control
     private void OnNextHolePressed()
     {
         GameManagerSingleton?.ContinueRunToNextHole();
+    }
+
+    private void OnShopPressed()
+    {
+        GameManagerSingleton?.GoToShop();
     }
 }

@@ -129,7 +129,8 @@ public partial class GameManager : Node
         }
 
         runManager.RecordHoleResult(holeResult);
-        runManager.AwardCurrency(CalculatePlaceholderHoleReward(holeResult));
+        var reward = runManager.CalculateHoleReward(holeResult);
+        runManager.AwardCurrency(reward);
         SaveCurrentRunIfAvailable();
 
         CompleteHole();
@@ -163,6 +164,27 @@ public partial class GameManager : Node
         ChangeState(GameState.LoadingHole);
         sceneRouter.GoToGameplay();
         ChangeState(GameState.InHole);
+    }
+
+    public void GoToShop()
+    {
+        var runManager = RunManagerSingleton;
+        var sceneRouter = SceneRouterSingleton;
+        if (runManager == null || sceneRouter == null)
+        {
+            GD.PushError("[GameManager] Unable to open shop. Missing RunManager or SceneRouter.");
+            return;
+        }
+
+        if (runManager.IsFinalHole())
+        {
+            CompleteRun();
+            return;
+        }
+
+        SaveCurrentRunIfAvailable();
+        sceneRouter.GoToShop();
+        ChangeState(GameState.Shop);
     }
 
     public void PauseGame()
@@ -205,20 +227,5 @@ public partial class GameManager : Node
         SceneRouterSingleton?.GoToMainMenu();
         ChangeState(GameState.MainMenu);
         GetTree().Paused = false;
-    }
-
-    private static int CalculatePlaceholderHoleReward(HoleResultData holeResult)
-    {
-        var baseReward = 8 + Mathf.Max(1, holeResult.Par) * 2;
-        var performanceBonus = holeResult.ScoreRelativeToPar switch
-        {
-            <= -2 => 8,
-            -1 => 5,
-            0 => 3,
-            1 => 1,
-            _ => 0
-        };
-
-        return Mathf.Max(1, baseReward + performanceBonus);
     }
 }

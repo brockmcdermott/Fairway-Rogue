@@ -112,7 +112,8 @@ public partial class GameplaySceneController : Node2D
             clubName: _clubController.CurrentClub.Name,
             windText: BuildHudWindAndControlsText()
         );
-        _hud.SetStatusMessage("Ready for next shot.");
+        var activeBallName = RunManagerSingleton?.GetActiveBallData().Name ?? "All-Around Ball";
+        _hud.SetStatusMessage($"Ready for next shot. Ball: {activeBallName}.");
 
         if (_lieEvaluator != null && _ballController != null)
         {

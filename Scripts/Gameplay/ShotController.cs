@@ -212,7 +212,7 @@ public partial class ShotController : Node2D
         return Vector2.Right.Rotated(_aimAngleRadians).Normalized();
     }
 
-    private float GetCurrentShotPower(ClubController.ClubDefinition club)
+    private float GetCurrentShotPower(ClubData club)
     {
         var chargeRatio = GetChargeRatio();
         return Mathf.Lerp(club.MinPower, club.MaxPower, chargeRatio);
@@ -253,7 +253,7 @@ public partial class ShotController : Node2D
         _chargeTime = 0.0f;
     }
 
-    private void OnClubChanged(ClubController.ClubDefinition club)
+    private void OnClubChanged(ClubData club)
     {
         _hud?.SetClubName(club.Name);
         UpdatePowerHud();
