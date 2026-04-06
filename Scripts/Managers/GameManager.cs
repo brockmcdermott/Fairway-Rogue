@@ -23,9 +23,9 @@ public partial class GameManager : Node
     private GameState _stateBeforePause = GameState.InHole;
     private Window? _rootWindow;
 
-    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
-    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
-    private SceneRouter? SceneRouterSingleton => GetNodeOrNull<SceneRouter>("/root/SceneRouter");
+    private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
+    private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
+    private SceneRouter? SceneRouterSingleton => AutoloadLocator.Get<SceneRouter>(this, nameof(SceneRouter));
 
     public override void _Ready()
     {

@@ -24,6 +24,7 @@ theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
 [node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
+custom_minimum_size = Vector2(430, 0)
 layout_mode = 2
 theme_override_constants/separation = 6
 
@@ -58,13 +59,18 @@ text = "Distance to Cup: --"
 [node name="WindLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Wind: --"
+size_flags_horizontal = 3
+autowrap_mode = 3
 
 [node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Status: Ready"
+size_flags_horizontal = 3
+autowrap_mode = 3
 
 [node name="ButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
 [node name="ReturnToMenuButton" type="Button" parent="MarginContainer/VBoxContainer/ButtonRow"]
@@ -74,3 +80,10 @@ text = "Return to Menu"
 [node name="RecoveryPromptButton" type="Button" parent="MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2
 text = "Recovery Prompt (Test)"
+
+[node name="DebugLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Debug"
+autowrap_mode = 3

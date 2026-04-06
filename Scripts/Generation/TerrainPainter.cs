@@ -173,7 +173,7 @@ public partial class TerrainPainter : Node
         {
             if (children[i] is Node child)
             {
-                child.Free();
+                child.QueueFree();
             }
         }
     }

@@ -9,12 +9,19 @@ public partial class BallController : Area2D
     [Export] public float BaseFrictionPerSecond { get; set; } = 420.0f;
     [Export] public float StopSpeedThreshold { get; set; } = 8.0f;
     [Export] public float StopSettleTime { get; set; } = 0.08f;
+    [Export] public float HardSnapStopSpeed { get; set; } = 0.35f;
     [Export] public float BoundaryBounceDamping { get; set; } = 0.35f;
     [Export] public bool EnableBoundsBounce { get; set; }
     [Export] public bool DrawDebugBall { get; set; }
 
     [ExportGroup("Playable Bounds")]
     [Export] public Rect2 PlayableBounds { get; set; } = new Rect2(new Vector2(100, 100), new Vector2(1080, 520));
+
+    [ExportGroup("Movement Safety")]
+    [Export] public float MaxMovementSeconds { get; set; } = 10.0f;
+    [Export] public float StallDetectSeconds { get; set; } = 0.65f;
+    [Export] public float StallDistanceThreshold { get; set; } = 0.6f;
+    [Export] public bool VerboseDebugLogging { get; set; }
 
     public Vector2 Velocity { get; private set; } = Vector2.Zero;
     public bool IsMoving { get; private set; }
@@ -31,6 +38,9 @@ public partial class BallController : Area2D
 
     private float _activeFrictionMultiplier = 1.0f;
     private float _settleTimer;
+    private float _movementElapsed;
+    private float _stallElapsed;
+    private Vector2 _lastMovementPosition = Vector2.Zero;
 
     public override void _Ready()
     {
@@ -57,10 +67,33 @@ public partial class BallController : Area2D
 
         var dt = (float)delta;
 
+        if (!IsVectorFinite(Velocity))
+        {
+            if (VerboseDebugLogging)
+            {
+                GD.PushWarning("[BallController] Non-finite velocity detected. Forcing stop.");
+            }
+
+            StopBall();
+            return;
+        }
+
         GlobalPosition += Velocity * dt;
         if (EnableBoundsBounce)
         {
             ApplyBoundsBounce();
+        }
+
+        _movementElapsed += dt;
+        if (_movementElapsed >= Mathf.Max(0.1f, MaxMovementSeconds))
+        {
+            if (VerboseDebugLogging)
+            {
+                GD.Print($"[BallController] Safety stop: exceeded max movement time ({_movementElapsed:0.00}s).");
+            }
+
+            StopBall();
+            return;
         }
 
         var speed = Velocity.Length();
@@ -68,13 +101,34 @@ public partial class BallController : Area2D
         var deceleration = BaseFrictionPerSecond * _activeFrictionMultiplier * terrainFriction * dt;
         var nextSpeed = Mathf.Max(speed - deceleration, 0.0f);
 
-        if (nextSpeed <= 0.0f)
+        if (nextSpeed <= Mathf.Max(0.0f, HardSnapStopSpeed))
         {
             Velocity = Vector2.Zero;
         }
         else
         {
             Velocity = Velocity.Normalized() * nextSpeed;
+        }
+
+        var travelled = GlobalPosition.DistanceTo(_lastMovementPosition);
+        _lastMovementPosition = GlobalPosition;
+        if (travelled <= Mathf.Max(0.0f, StallDistanceThreshold))
+        {
+            _stallElapsed += dt;
+            if (_stallElapsed >= Mathf.Max(0.1f, StallDetectSeconds))
+            {
+                if (VerboseDebugLogging)
+                {
+                    GD.Print($"[BallController] Safety stop: stall detected at speed {Velocity.Length():0.00}.");
+                }
+
+                StopBall();
+                return;
+            }
+        }
+        else
+        {
+            _stallElapsed = 0.0f;
         }
 
         if (Velocity.Length() <= StopSpeedThreshold)
@@ -110,6 +164,9 @@ public partial class BallController : Area2D
         Velocity = direction.Normalized() * clampedSpeed;
         IsMoving = true;
         _settleTimer = 0.0f;
+        _movementElapsed = 0.0f;
+        _stallElapsed = 0.0f;
+        _lastMovementPosition = GlobalPosition;
 
         ShotLaunched?.Invoke(shotStartPosition);
         BallStartedMoving?.Invoke();
@@ -162,6 +219,9 @@ public partial class BallController : Area2D
         Velocity = Vector2.Zero;
         IsMoving = false;
         _settleTimer = 0.0f;
+        _movementElapsed = 0.0f;
+        _stallElapsed = 0.0f;
+        _lastMovementPosition = GlobalPosition;
 
         BallStopped?.Invoke();
     }
@@ -207,5 +267,13 @@ public partial class BallController : Area2D
         }
 
         GlobalPosition = pos;
+    }
+
+    private static bool IsVectorFinite(Vector2 vector)
+    {
+        return !float.IsNaN(vector.X) &&
+               !float.IsNaN(vector.Y) &&
+               !float.IsInfinity(vector.X) &&
+               !float.IsInfinity(vector.Y);
     }
 }

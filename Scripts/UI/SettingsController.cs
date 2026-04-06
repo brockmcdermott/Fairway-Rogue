@@ -5,9 +5,9 @@ public partial class SettingsController : Control
     private Label? _statusLabel;
     private Button? _backButton;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {

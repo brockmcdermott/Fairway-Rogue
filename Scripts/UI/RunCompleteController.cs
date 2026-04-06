@@ -7,15 +7,15 @@ public partial class RunCompleteController : Control
     private Button? _newRunButton;
     private Button? _mainMenuButton;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
-    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
+    private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {
         _summaryLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel");
-        _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryLabel");
+        _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryScroll/HistoryLabel");
         _newRunButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/NewRunButton");
         _mainMenuButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/MainMenuButton");
 

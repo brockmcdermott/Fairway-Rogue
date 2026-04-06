@@ -23,6 +23,14 @@ AudioManager="*res://Scripts/Managers/AudioManager.cs"
 SceneRouter="*res://Scripts/Managers/SceneRouter.cs"
 GameManager="*res://Scripts/Managers/GameManager.cs"
 
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
 [dotnet]
 
 project/assembly_name="Fairway Rogue"

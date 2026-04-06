@@ -20,6 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(860, 0)
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer"]
@@ -40,11 +41,14 @@ horizontal_alignment = 1
 
 [node name="CurrencyLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Currency: 0"
 
 [node name="ActiveBallLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Active Ball: All-Around Ball"
+autowrap_mode = 3
 
 [node name="BallRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -65,20 +69,25 @@ text = "Available Upgrades"
 [node name="UpgradeList" type="ItemList" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(620, 180)
 layout_mode = 2
+size_flags_vertical = 3
 allow_reselect = true
 
 [node name="UpgradeDetailsLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Select an upgrade to view details."
 autowrap_mode = 3
 
 [node name="StatusLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Status: Ready"
 autowrap_mode = 3
 
 [node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
 theme_override_constants/separation = 8
 
 [node name="PurchaseButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]

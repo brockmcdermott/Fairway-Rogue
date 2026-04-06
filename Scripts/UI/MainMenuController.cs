@@ -9,10 +9,10 @@ public partial class MainMenuController : Control
     private Button? _quitButton;
     private AcceptDialog? _highScoresDialog;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
-    private SceneRouter? SceneRouterSingleton => GetNodeOrNull<SceneRouter>("/root/SceneRouter");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
+    private SceneRouter? SceneRouterSingleton => AutoloadLocator.Get<SceneRouter>(this, nameof(SceneRouter));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {

@@ -20,6 +20,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(760, 0)
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer"]
@@ -40,15 +41,26 @@ horizontal_alignment = 1
 
 [node name="SummaryLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 3
 text = "Final score summary"
+autowrap_mode = 3
 
-[node name="HistoryLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="HistoryScroll" type="ScrollContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 220)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="HistoryLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Hole-by-hole summary"
 autowrap_mode = 3
 
 [node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 4
+alignment = 1
 theme_override_constants/separation = 8
 
 [node name="NewRunButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow"]

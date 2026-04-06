@@ -16,9 +16,9 @@ public partial class ShopController : Control
     private readonly List<BallData> _visibleBalls = new List<BallData>();
     private bool _isRefreshingBallOptions;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {

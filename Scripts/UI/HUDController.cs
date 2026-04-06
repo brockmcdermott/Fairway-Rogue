@@ -17,9 +17,10 @@ public partial class HUDController : Control
     private Label? _distanceLabel;
     private Label? _windLabel;
     private Label? _statusLabel;
+    private Label? _debugLabel;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {
@@ -32,6 +33,7 @@ public partial class HUDController : Control
         _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
         _statusLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StatusLabel");
+        _debugLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DebugLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
         _recoveryTestButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
 
@@ -137,6 +139,20 @@ public partial class HUDController : Control
         if (_statusLabel != null)
         {
             _statusLabel.Text = $"Status: {message}";
+        }
+    }
+
+    public void SetDebugInfo(string message, bool visible)
+    {
+        if (_debugLabel == null)
+        {
+            return;
+        }
+
+        _debugLabel.Visible = visible;
+        if (visible)
+        {
+            _debugLabel.Text = message;
         }
     }
 }

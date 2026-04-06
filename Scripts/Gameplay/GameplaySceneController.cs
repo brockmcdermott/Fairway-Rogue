@@ -2,10 +2,18 @@ using Godot;
 
 public partial class GameplaySceneController : Node2D
 {
+    [ExportGroup("Camera Framing")]
+    [Export] public float CameraPaddingPixels { get; set; } = 120.0f;
+    [Export] public float CameraMinZoom { get; set; } = 0.55f;
+    [Export] public float CameraMaxZoom { get; set; } = 2.20f;
+
     [ExportGroup("Debug Hooks")]
     [Export] public bool UseProceduralGeneration { get; set; } = true;
     [Export] public int DebugSeedOverride { get; set; }
+    [Export] public bool EnableDebugOverlay { get; set; }
 
+    private Camera2D? _camera;
+    private Viewport? _viewport;
     private HUDController? _hud;
     private HoleController? _holeController;
     private BallController? _ballController;
@@ -18,15 +26,22 @@ public partial class GameplaySceneController : Node2D
     private RecoveryDialogController? _recoveryDialog;
     private HoleLayout? _activeLayout;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
 
-        _hud = GetNodeOrNull<HUDController>("HUD");
+        _camera = GetNodeOrNull<Camera2D>("Camera2D");
+        _viewport = GetViewport();
+        if (_viewport != null)
+        {
+            _viewport.SizeChanged += OnViewportSizeChanged;
+        }
+
+        _hud = GetNodeOrNull<HUDController>("UIRoot/HUD");
         _holeController = GetNodeOrNull<HoleController>("HoleRoot/StaticPracticeHole");
         _ballController = GetNodeOrNull<BallController>("Ball");
         _clubController = GetNodeOrNull<ClubController>("ClubController");
@@ -35,7 +50,7 @@ public partial class GameplaySceneController : Node2D
         _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
         _holeGenerator = GetNodeOrNull<HoleGenerator>("HoleGenerator");
         _terrainPainter = GetNodeOrNull<TerrainPainter>("TerrainPainter");
-        _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("RecoveryDialog");
+        _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("UIRoot/RecoveryDialog");
 
         if (_hud != null)
         {
@@ -63,6 +78,7 @@ public partial class GameplaySceneController : Node2D
         {
             _holeController.BindBall(_ballController);
             _ballController.SetPlayableBounds(_holeController.GetCourseBounds());
+            UpdateCameraFraming();
         }
 
         if (_lieEvaluator != null && _holeController != null)
@@ -86,6 +102,7 @@ public partial class GameplaySceneController : Node2D
         }
 
         InitializeHud();
+        UpdateDebugOverlay();
 
         GameManagerSingleton?.ChangeState(GameState.InHole);
         GameManagerSingleton?.SaveCurrentRunIfAvailable();
@@ -133,6 +150,7 @@ public partial class GameplaySceneController : Node2D
         }
 
         _hud.SetDistanceToCup(_holeController.GetDistanceToCup(_ballController.GlobalPosition));
+        UpdateDebugOverlay();
     }
 
     private void InitializeHud()
@@ -158,6 +176,8 @@ public partial class GameplaySceneController : Node2D
             _ballController.SetTerrain(initialLie);
             _hud.SetLieType(initialLie);
         }
+
+        _hud.SetDebugInfo(string.Empty, EnableDebugOverlay);
     }
 
     private void GenerateAndApplyHoleLayout()
@@ -175,6 +195,7 @@ public partial class GameplaySceneController : Node2D
             _activeLayout = null;
             _holeController.HoleNumber = holeIndex;
             _hud?.SetStatusMessage("Debug static practice hole enabled.");
+            UpdateCameraFraming();
             return;
         }
 
@@ -188,6 +209,72 @@ public partial class GameplaySceneController : Node2D
 
         var direction = GetCompassDirection(_activeLayout.WindDirection);
         _hud?.SetStatusMessage($"Generated hole {_activeLayout.HoleNumber} (Seed {_activeLayout.Seed}) | Wind {direction} {_activeLayout.WindStrength:0.00}");
+        UpdateCameraFraming();
+    }
+
+    private void UpdateCameraFraming()
+    {
+        if (_camera == null || _holeController == null)
+        {
+            return;
+        }
+
+        var bounds = _holeController.GetCourseBounds();
+        if (bounds.Size.X <= Mathf.Epsilon || bounds.Size.Y <= Mathf.Epsilon)
+        {
+            return;
+        }
+
+        _camera.GlobalPosition = bounds.GetCenter();
+
+        var viewportRect = GetViewportRect();
+        if (viewportRect.Size.X <= 1.0f || viewportRect.Size.Y <= 1.0f)
+        {
+            return;
+        }
+
+        var safePadding = Mathf.Max(0.0f, CameraPaddingPixels);
+        var targetWidth = Mathf.Max(1.0f, bounds.Size.X + safePadding * 2.0f);
+        var targetHeight = Mathf.Max(1.0f, bounds.Size.Y + safePadding * 2.0f);
+
+        var zoomX = targetWidth / viewportRect.Size.X;
+        var zoomY = targetHeight / viewportRect.Size.Y;
+        var targetZoom = Mathf.Clamp(Mathf.Max(zoomX, zoomY), Mathf.Min(CameraMinZoom, CameraMaxZoom), Mathf.Max(CameraMinZoom, CameraMaxZoom));
+        _camera.Zoom = new Vector2(targetZoom, targetZoom);
+    }
+
+    private void UpdateDebugOverlay()
+    {
+        if (_hud == null)
+        {
+            return;
+        }
+
+        if (!EnableDebugOverlay || _ballController == null)
+        {
+            _hud.SetDebugInfo(string.Empty, false);
+            return;
+        }
+
+        var speed = _ballController.Velocity.Length();
+        var terrainText = _ballController.CurrentTerrainType.ToString();
+        var movingText = _ballController.IsMoving ? "Moving" : "Stopped";
+        var hazardText = _hazardResolver?.LastHazardDebugText ?? "none";
+        var safePos = _hazardResolver?.LastSafePosition ?? Vector2.Zero;
+        var previousPos = _hazardResolver?.PreviousShotPosition ?? Vector2.Zero;
+
+        var text =
+            $"Debug | {movingText} | Speed {speed:0.00}\n" +
+            $"Terrain: {terrainText}\n" +
+            $"Last Safe: ({safePos.X:0.0}, {safePos.Y:0.0}) | Prev Shot: ({previousPos.X:0.0}, {previousPos.Y:0.0})\n" +
+            $"Last Hazard: {hazardText}";
+
+        _hud.SetDebugInfo(text, true);
+    }
+
+    private void OnViewportSizeChanged()
+    {
+        UpdateCameraFraming();
     }
 
     private string BuildHudWindAndControlsText()
@@ -273,6 +360,11 @@ public partial class GameplaySceneController : Node2D
         if (_hazardResolver != null)
         {
             _hazardResolver.TreeRecoveryPromptRequested -= OnTreeRecoveryPromptRequested;
+        }
+
+        if (_viewport != null)
+        {
+            _viewport.SizeChanged -= OnViewportSizeChanged;
         }
 
         base._ExitTree();

@@ -49,7 +49,7 @@ public partial class AudioManager : Node
         ["gameplay"] = new ToneProfile(210.0f, 240.0f, 0.28f, 0.22f)
     };
 
-    private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
+    private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
 
     public override void _Ready()
     {

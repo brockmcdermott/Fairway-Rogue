@@ -11,6 +11,10 @@ public partial class HazardResolver : Node
     [Export] public float RecoveryCollisionRadiusScale { get; set; } = 0.9f;
     [Export] public float TreeDropMaxRadius { get; set; } = 150.0f;
 
+    [ExportGroup("Safety")]
+    [Export] public float HazardReentryCooldownSeconds { get; set; } = 0.15f;
+    [Export] public bool VerboseDebugLogging { get; set; }
+
     public event Action? TreeRecoveryPromptRequested;
 
     private BallController? _ball;
@@ -23,13 +27,16 @@ public partial class HazardResolver : Node
     private bool _recoveryPromptActive;
     private Vector2 _previousShotPosition = Vector2.Zero;
     private Vector2 _lastSafePosition = Vector2.Zero;
+    private TerrainType _lastResolvedHazard = TerrainType.Tee;
+    private double _lastHazardResolveTimeSeconds = -9999.0;
 
-    private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public Vector2 PreviousShotPosition => _previousShotPosition;
     public Vector2 LastSafePosition => _lastSafePosition;
     public bool IsRecoveryPromptActive => _recoveryPromptActive;
+    public string LastHazardDebugText { get; private set; } = "none";
 
     public void Configure(
         BallController ball,
@@ -50,6 +57,9 @@ public partial class HazardResolver : Node
         _lastSafePosition = ball.GlobalPosition;
         _isResolvingHazard = false;
         _recoveryPromptActive = false;
+        _lastResolvedHazard = TerrainType.Tee;
+        _lastHazardResolveTimeSeconds = -9999.0;
+        LastHazardDebugText = "none";
 
         ball.ShotLaunched += OnShotLaunched;
         ball.BallStopped += OnBallStopped;
@@ -84,12 +94,20 @@ public partial class HazardResolver : Node
         _isResolvingHazard = true;
 
         _hole.AddPenaltyStroke(1);
-        var dropPosition = FindTreeDropPosition(_ball.GlobalPosition);
+        var dropPosition = EnsureSafeRecoveryPosition(FindTreeDropPosition(_ball.GlobalPosition), _ball.GlobalPosition);
         _ball.ResetAt(dropPosition);
 
         var droppedLie = _lieEvaluator.EvaluateLie(dropPosition);
+        if (!IsSafeTerrain(droppedLie))
+        {
+            dropPosition = EnsureSafeRecoveryPosition(_hole.TeePosition, _ball.GlobalPosition);
+            _ball.ResetAt(dropPosition);
+            droppedLie = _lieEvaluator.EvaluateLie(dropPosition);
+        }
+
         _ball.SetTerrain(droppedLie);
         _lastSafePosition = dropPosition;
+        LastHazardDebugText = $"Tree drop -> ({dropPosition.X:0.0}, {dropPosition.Y:0.0})";
 
         _hud.SetStrokeCount(_hole.LocalStrokeCount);
         _hud.SetStatusMessage("Take a drop selected: +1 penalty stroke.");
@@ -126,6 +144,12 @@ public partial class HazardResolver : Node
 
         if (_hole.IsHoleComplete || _ball.IsMoving)
         {
+            return;
+        }
+
+        if (_ball.CurrentTerrainType == TerrainType.Water || _ball.CurrentTerrainType == TerrainType.OutOfBounds)
+        {
+            OnHazardEntered(_ball.CurrentTerrainType, _ball.GlobalPosition);
             return;
         }
 
@@ -174,30 +198,67 @@ public partial class HazardResolver : Node
             return;
         }
 
+        var nowSeconds = Time.GetTicksMsec() / 1000.0;
+        if (terrainType == _lastResolvedHazard &&
+            nowSeconds - _lastHazardResolveTimeSeconds <= Mathf.Max(0.0f, HazardReentryCooldownSeconds) &&
+            entryPosition.DistanceTo(_lastSafePosition) <= Mathf.Max(RecoverySearchStep, 12.0f))
+        {
+            return;
+        }
+
         _isResolvingHazard = true;
         _shotController.SetInputEnabled(false);
 
-        _ball.StopBall();
-        _hole.AddPenaltyStroke(1);
-        if (terrainType == TerrainType.Water)
+        try
         {
-            AudioManagerSingleton?.PlaySfx("splash");
+            _ball.StopBall();
+            _hole.AddPenaltyStroke(1);
+            if (terrainType == TerrainType.Water)
+            {
+                AudioManagerSingleton?.PlaySfx("splash");
+            }
+
+            var recoveryPosition = EnsureSafeRecoveryPosition(FindRecoveryPosition(entryPosition), entryPosition);
+            _ball.ResetAt(recoveryPosition);
+
+            var recoveredLie = _lieEvaluator.EvaluateLie(recoveryPosition);
+            if (!IsSafeTerrain(recoveredLie))
+            {
+                recoveryPosition = EnsureSafeRecoveryPosition(_hole.TeePosition, entryPosition);
+                _ball.ResetAt(recoveryPosition);
+                recoveredLie = _lieEvaluator.EvaluateLie(recoveryPosition);
+            }
+
+            if (!IsSafeTerrain(recoveredLie))
+            {
+                recoveredLie = TerrainType.Tee;
+            }
+
+            _ball.SetTerrain(recoveredLie);
+            _lastSafePosition = recoveryPosition;
+
+            _hud.SetStrokeCount(_hole.LocalStrokeCount);
+
+            var hazardLabel = terrainType == TerrainType.Water ? "Water" : "Out of Bounds";
+            _hud.SetStatusMessage($"{hazardLabel}: +1 penalty stroke. Repositioned to a safe lie.");
+            LastHazardDebugText =
+                $"{hazardLabel} @ ({entryPosition.X:0.0}, {entryPosition.Y:0.0}) -> ({recoveryPosition.X:0.0}, {recoveryPosition.Y:0.0})";
+
+            _lastResolvedHazard = terrainType;
+            _lastHazardResolveTimeSeconds = nowSeconds;
+
+            if (VerboseDebugLogging)
+            {
+                GD.Print($"[HazardResolver] {LastHazardDebugText}");
+            }
         }
-
-        var recoveryPosition = FindRecoveryPosition(entryPosition);
-        _ball.ResetAt(recoveryPosition);
-
-        var recoveredLie = _lieEvaluator.EvaluateLie(recoveryPosition);
-        _ball.SetTerrain(recoveredLie);
-        _lastSafePosition = recoveryPosition;
-
-        _hud.SetStrokeCount(_hole.LocalStrokeCount);
-
-        var hazardLabel = terrainType == TerrainType.Water ? "Water" : "Out of Bounds";
-        _hud.SetStatusMessage($"{hazardLabel}: +1 penalty stroke. Repositioned to a safe lie.");
-
-        _isResolvingHazard = false;
-        _shotController.SetInputEnabled(true);
+        finally
+        {
+            _isResolvingHazard = false;
+            _ball.SetMovementEnabled(true);
+            _shotController.SetInputEnabled(true);
+            GameManagerSingleton?.ChangeState(GameState.InHole);
+        }
     }
 
     private void BeginTreeRecoveryPrompt()
@@ -259,11 +320,12 @@ public partial class HazardResolver : Node
 
     private bool TrySearchForTreeDropAround(Vector2 center, out Vector2 dropPoint)
     {
-        dropPoint = center;
+        dropPoint = ClampInsidePlayableBounds(center);
 
-        if (IsValidTreeDropPoint(center))
+        var clampedCenter = ClampInsidePlayableBounds(center);
+        if (IsValidTreeDropPoint(clampedCenter))
         {
-            dropPoint = center;
+            dropPoint = clampedCenter;
             return true;
         }
 
@@ -277,7 +339,7 @@ public partial class HazardResolver : Node
             {
                 var angle = Mathf.Tau * i / sampleCount;
                 var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                var candidate = center + offset;
+                var candidate = ClampInsidePlayableBounds(center + offset);
 
                 if (!IsValidTreeDropPoint(candidate))
                 {
@@ -334,11 +396,12 @@ public partial class HazardResolver : Node
 
     private bool TrySearchAround(Vector2 center, out Vector2 safePoint, float maxRadiusOverride = -1.0f)
     {
-        safePoint = center;
+        safePoint = ClampInsidePlayableBounds(center);
 
-        if (IsSafeRecoveryPoint(center))
+        var clampedCenter = ClampInsidePlayableBounds(center);
+        if (IsSafeRecoveryPoint(clampedCenter))
         {
-            safePoint = center;
+            safePoint = clampedCenter;
             return true;
         }
 
@@ -353,7 +416,7 @@ public partial class HazardResolver : Node
             {
                 var angle = Mathf.Tau * i / sampleCount;
                 var offset = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                var candidate = center + offset;
+                var candidate = ClampInsidePlayableBounds(center + offset);
 
                 if (!IsSafeRecoveryPoint(candidate))
                 {
@@ -375,6 +438,8 @@ public partial class HazardResolver : Node
             return false;
         }
 
+        point = ClampInsidePlayableBounds(point);
+
         var terrain = _lieEvaluator.EvaluateTerrainAtPosition(point);
         if (!IsSafeTerrain(terrain))
         {
@@ -390,6 +455,8 @@ public partial class HazardResolver : Node
         {
             return false;
         }
+
+        point = ClampInsidePlayableBounds(point);
 
         if (!IsSafeRecoveryPoint(point))
         {
@@ -439,5 +506,72 @@ public partial class HazardResolver : Node
 
         var results = space.IntersectShape(query, 8);
         return results.Count > 0;
+    }
+
+    private Vector2 EnsureSafeRecoveryPosition(Vector2 preferredPoint, Vector2 hazardEntryPosition)
+    {
+        var clampedPreferred = ClampInsidePlayableBounds(preferredPoint);
+        if (IsSafeRecoveryPoint(clampedPreferred))
+        {
+            return clampedPreferred;
+        }
+
+        if (TrySearchAround(clampedPreferred, out var nearPreferred, RecoverySearchMaxRadius * 1.5f))
+        {
+            return nearPreferred;
+        }
+
+        var clampedPrevious = ClampInsidePlayableBounds(_previousShotPosition);
+        if (TrySearchAround(clampedPrevious, out var nearPrevious, RecoverySearchMaxRadius * 1.5f))
+        {
+            return nearPrevious;
+        }
+
+        var clampedLastSafe = ClampInsidePlayableBounds(_lastSafePosition);
+        if (TrySearchAround(clampedLastSafe, out var nearLastSafe, RecoverySearchMaxRadius * 1.5f))
+        {
+            return nearLastSafe;
+        }
+
+        var clampedEntry = ClampInsidePlayableBounds(hazardEntryPosition);
+        if (TrySearchAround(clampedEntry, out var nearEntry, RecoverySearchMaxRadius * 1.5f))
+        {
+            return nearEntry;
+        }
+
+        if (_hole != null)
+        {
+            var tee = ClampInsidePlayableBounds(_hole.TeePosition);
+            if (TrySearchAround(tee, out var nearTee, RecoverySearchMaxRadius * 2.0f))
+            {
+                return nearTee;
+            }
+
+            return tee;
+        }
+
+        return clampedPreferred;
+    }
+
+    private Vector2 ClampInsidePlayableBounds(Vector2 point)
+    {
+        if (_hole == null || _ball == null)
+        {
+            return point;
+        }
+
+        var bounds = _hole.GetCourseBounds();
+        var inset = Mathf.Max(2.0f, _ball.Radius + 1.0f);
+        var min = bounds.Position + new Vector2(inset, inset);
+        var max = bounds.End - new Vector2(inset, inset);
+
+        if (max.X < min.X || max.Y < min.Y)
+        {
+            return point;
+        }
+
+        return new Vector2(
+            Mathf.Clamp(point.X, min.X, max.X),
+            Mathf.Clamp(point.Y, min.Y, max.Y));
     }
 }

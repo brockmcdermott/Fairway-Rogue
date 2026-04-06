@@ -13,7 +13,7 @@ public partial class RecoveryDialogController : Control
     private Button? _dropButton;
     private Button? _playFromLieButton;
     private Label? _bodyLabel;
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
     {

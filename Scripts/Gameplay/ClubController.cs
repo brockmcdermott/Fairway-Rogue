@@ -17,7 +17,7 @@ public partial class ClubController : Node
 
     public event Action<ClubData>? ClubChanged;
 
-    private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
+    private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
 
     public override void _Ready()
     {

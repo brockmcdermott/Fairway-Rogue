@@ -15,7 +15,7 @@ public partial class ShotController : Node2D
     private HUDController? _hud;
     private ClubController? _clubController;
     private LieEvaluator? _lieEvaluator;
-    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
+    private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     private bool _inputEnabled = true;
     private bool _isCharging;
@@ -199,6 +199,13 @@ public partial class ShotController : Node2D
         var lieForShot = _lieEvaluator != null ? _lieEvaluator.CurrentLie : TerrainType.Fairway;
         var terrainProperties = TerrainDatabase.GetProperties(lieForShot);
         shotPower *= terrainProperties.PowerMultiplier;
+
+        if (shotPower <= 0.01f)
+        {
+            _isCharging = false;
+            _hud?.SetStatusMessage("Cannot hit from an invalid lie. Recover to a playable position first.");
+            return;
+        }
 
         _isCharging = false;
 

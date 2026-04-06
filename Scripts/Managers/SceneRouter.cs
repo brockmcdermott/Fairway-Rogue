@@ -9,6 +9,9 @@ public partial class SceneRouter : Node
     public const string RunCompleteScenePath = "res://Scenes/UI/RunCompleteScene.tscn";
     public const string SettingsScenePath = "res://Scenes/UI/SettingsScene.tscn";
 
+    private string? _pendingScenePath;
+    private bool _changeDeferred;
+
     public Error GoToMainMenu()
     {
         return ChangeScene(MainMenuScenePath);
@@ -47,6 +50,39 @@ public partial class SceneRouter : Node
             return Error.FileNotFound;
         }
 
+        if (_changeDeferred)
+        {
+            _pendingScenePath = scenePath;
+            return Error.Ok;
+        }
+
+        if (Engine.IsInPhysicsFrame())
+        {
+            _pendingScenePath = scenePath;
+            _changeDeferred = true;
+            CallDeferred(nameof(ApplyDeferredSceneChange));
+            return Error.Ok;
+        }
+
+        return ChangeSceneImmediate(scenePath);
+    }
+
+    private void ApplyDeferredSceneChange()
+    {
+        _changeDeferred = false;
+
+        var path = _pendingScenePath;
+        _pendingScenePath = null;
+        if (string.IsNullOrEmpty(path))
+        {
+            return;
+        }
+
+        _ = ChangeSceneImmediate(path);
+    }
+
+    private Error ChangeSceneImmediate(string scenePath)
+    {
         var result = GetTree().ChangeSceneToFile(scenePath);
         if (result != Error.Ok)
         {

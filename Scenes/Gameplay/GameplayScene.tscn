@@ -49,28 +49,45 @@ script = ExtResource("11")
 
 [node name="HoleCompleteOverlay" type="CanvasLayer" parent="."]
 
-[node name="PanelContainer" type="PanelContainer" parent="HoleCompleteOverlay"]
-visible = false
-offset_left = 368.0
-offset_top = 24.0
-offset_right = 912.0
-offset_bottom = 172.0
+[node name="OverlayRoot" type="Control" parent="HoleCompleteOverlay"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="HoleCompleteOverlay/PanelContainer"]
+[node name="CenterContainer" type="CenterContainer" parent="HoleCompleteOverlay/OverlayRoot"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="HoleCompleteOverlay/OverlayRoot/CenterContainer"]
+visible = false
+custom_minimum_size = Vector2(480, 0)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HoleCompleteOverlay/OverlayRoot/CenterContainer/PanelContainer"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HoleCompleteOverlay/PanelContainer/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="HoleCompleteOverlay/OverlayRoot/CenterContainer/PanelContainer/MarginContainer"]
 layout_mode = 2
 
-[node name="HoleCompleteLabel" type="Label" parent="HoleCompleteOverlay/PanelContainer/MarginContainer/VBoxContainer"]
+[node name="HoleCompleteLabel" type="Label" parent="HoleCompleteOverlay/OverlayRoot/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Hole Complete"
 horizontal_alignment = 1
 
-[node name="HUD" parent="." instance=ExtResource("2")]
+[node name="UIRoot" type="CanvasLayer" parent="."]
 
-[node name="RecoveryDialog" parent="." instance=ExtResource("3")]
+[node name="HUD" parent="UIRoot" instance=ExtResource("2")]
+
+[node name="RecoveryDialog" parent="UIRoot" instance=ExtResource("3")]
