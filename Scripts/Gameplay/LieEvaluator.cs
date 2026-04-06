@@ -25,6 +25,7 @@ public partial class LieEvaluator : Node
         _playableBounds = playableBounds;
 
         RegisterTerrainNodesRecursive(terrainRoot);
+        PurgeInvalidReferences();
         _regions.Sort((left, right) => right.Priority.CompareTo(left.Priority));
     }
 
@@ -43,20 +44,38 @@ public partial class LieEvaluator : Node
 
     public TerrainType EvaluateTerrainAtPosition(Vector2 globalPosition)
     {
+        PurgeInvalidReferences();
+
         if (!_playableBounds.HasPoint(globalPosition))
         {
             return TerrainType.OutOfBounds;
         }
 
         var lie = TerrainType.Rough;
-        for (var i = 0; i < _regions.Count; i += 1)
+        for (var i = 0; i < _regions.Count;)
         {
             var region = _regions[i];
-            if (region.ContainsGlobalPoint(globalPosition))
+            if (!IsNodeUsable(region))
             {
-                lie = region.RegionTerrainType;
-                break;
+                _regions.RemoveAt(i);
+                continue;
             }
+
+            try
+            {
+                if (region.ContainsGlobalPoint(globalPosition))
+                {
+                    lie = region.RegionTerrainType;
+                    break;
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                _regions.RemoveAt(i);
+                continue;
+            }
+
+            i += 1;
         }
 
         return lie;
@@ -80,6 +99,11 @@ public partial class LieEvaluator : Node
 
     private void RegisterTerrainNodesRecursive(Node node)
     {
+        if (!IsNodeUsable(node))
+        {
+            return;
+        }
+
         if (node is TerrainRegion terrainRegion)
         {
             _regions.Add(terrainRegion);
@@ -104,7 +128,7 @@ public partial class LieEvaluator : Node
         for (var i = 0; i < _treeObstacles.Count; i += 1)
         {
             var obstacle = _treeObstacles[i];
-            if (!obstacle.IsInsideTree())
+            if (!IsNodeUsable(obstacle) || !obstacle.IsInsideTree())
             {
                 continue;
             }
@@ -128,6 +152,32 @@ public partial class LieEvaluator : Node
         }
 
         return false;
+    }
+
+    private void PurgeInvalidReferences()
+    {
+        for (var i = _regions.Count - 1; i >= 0; i -= 1)
+        {
+            if (!IsNodeUsable(_regions[i]))
+            {
+                _regions.RemoveAt(i);
+            }
+        }
+
+        for (var i = _treeObstacles.Count - 1; i >= 0; i -= 1)
+        {
+            if (!IsNodeUsable(_treeObstacles[i]))
+            {
+                _treeObstacles.RemoveAt(i);
+            }
+        }
+    }
+
+    private static bool IsNodeUsable(Node? node)
+    {
+        return node != null &&
+               GodotObject.IsInstanceValid(node) &&
+               !node.IsQueuedForDeletion();
     }
 
     private static float GetMaxScaleMagnitude(Transform2D transform)

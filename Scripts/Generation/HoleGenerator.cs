@@ -3,6 +3,18 @@ using Godot;
 
 public partial class HoleGenerator : Node
 {
+    private static readonly Vector2[] DirectionPresets =
+    {
+        Vector2.Right,
+        Vector2.Left,
+        Vector2.Up,
+        Vector2.Down,
+        new Vector2(0.72f, -0.69f).Normalized(),
+        new Vector2(0.68f, 0.74f).Normalized(),
+        new Vector2(-0.70f, 0.71f).Normalized(),
+        new Vector2(-0.74f, -0.67f).Normalized()
+    };
+
     [ExportGroup("Generation Bounds")]
     [Export] public Rect2 GenerationBounds { get; set; } = new Rect2(new Vector2(100, 100), new Vector2(1080, 520));
     [Export] public float BoundsMargin { get; set; } = 70.0f;
@@ -15,6 +27,12 @@ public partial class HoleGenerator : Node
     [Export] public float MaxFairwayWidth { get; set; } = 176.0f;
     [Export] public float MinFairwayWidth { get; set; } = 108.0f;
     [Export] public bool UseFallbackTemplate { get; set; } = true;
+
+    [ExportGroup("Route Variety")]
+    [Export] public float DirectionalCenterJitterX { get; set; } = 120.0f;
+    [Export] public float DirectionalCenterJitterY { get; set; } = 90.0f;
+    [Export] public float DirectionalCrossAxisJitter { get; set; } = 150.0f;
+    [Export] public float OrientationJitterDegrees { get; set; } = 15.0f;
 
     [ExportGroup("Wind Tuning")]
     [Export] public float MinWindStrength { get; set; } = 0.03f;
@@ -55,25 +73,32 @@ public partial class HoleGenerator : Node
         var difficulty = totalHoles <= 1 ? 0.0f : (holeNumber - 1) / (float)(totalHoles - 1);
         var safeBounds = GenerationBounds.Grow(-BoundsMargin);
 
-        var teePosition = new Vector2(
-            safeBounds.Position.X,
-            rng.RandfRange(safeBounds.Position.Y + 28.0f, safeBounds.End.Y - 28.0f));
-
         var targetLength = Mathf.Lerp(MinHoleLength, MaxHoleLength, difficulty) + rng.RandfRange(-LengthJitter, LengthJitter);
-        var cupX = Mathf.Clamp(
-            teePosition.X + targetLength,
-            teePosition.X + 320.0f,
-            safeBounds.End.X);
-        var cupY = Mathf.Clamp(
-            teePosition.Y + rng.RandfRange(-160.0f, 160.0f),
-            safeBounds.Position.Y,
-            safeBounds.End.Y);
-        var cupPosition = new Vector2(cupX, cupY);
+        var heading = BuildHoleDirection(holeNumber, rng);
+        var headingNormal = heading.Orthogonal().Normalized();
+
+        var center = safeBounds.GetCenter() + new Vector2(
+            rng.RandfRange(-DirectionalCenterJitterX, DirectionalCenterJitterX),
+            rng.RandfRange(-DirectionalCenterJitterY, DirectionalCenterJitterY));
+        center = ClampPointToRect(center, safeBounds);
+
+        var halfLength = Mathf.Max(260.0f, targetLength * 0.5f);
+        var teeOffset = rng.RandfRange(-DirectionalCrossAxisJitter, DirectionalCrossAxisJitter);
+        var cupOffset = rng.RandfRange(-DirectionalCrossAxisJitter, DirectionalCrossAxisJitter);
+
+        var teePosition = ClampPointToRect(center - heading * halfLength + headingNormal * teeOffset, safeBounds);
+        var cupPosition = ClampPointToRect(center + heading * halfLength + headingNormal * cupOffset, safeBounds);
+
+        if (teePosition.DistanceTo(cupPosition) < Mathf.Max(320.0f, MinHoleLength * 0.6f))
+        {
+            teePosition = ClampPointToRect(center - heading * (halfLength + 80.0f), safeBounds);
+            cupPosition = ClampPointToRect(center + heading * (halfLength + 80.0f), safeBounds);
+        }
 
         var fairwayWidth = Mathf.Lerp(MaxFairwayWidth, MinFairwayWidth, difficulty) + rng.RandfRange(-8.0f, 8.0f);
         fairwayWidth = Mathf.Clamp(fairwayWidth, MinFairwayWidth - 8.0f, MaxFairwayWidth + 8.0f);
         var controlPoints = 2 + Mathf.RoundToInt(Mathf.Lerp(1.0f, 3.0f, difficulty));
-        var lateralJitter = Mathf.Lerp(40.0f, 140.0f, difficulty);
+        var lateralJitter = Mathf.Lerp(60.0f, 170.0f, difficulty);
 
         var centerLine = _fairwayPathBuilder.BuildCenterLine(
             teePosition,
@@ -138,14 +163,17 @@ public partial class HoleGenerator : Node
             return BuildCandidateLayout(seed, holeNumber, totalHoles, fallbackRng);
         }
 
-        var centerY = GenerationBounds.Position.Y + GenerationBounds.Size.Y * 0.5f;
-        var tee = new Vector2(GenerationBounds.Position.X + 100.0f, centerY);
-        var cup = new Vector2(GenerationBounds.End.X - 120.0f, centerY);
+        var rng = new RandomNumberGenerator { Seed = ComposeBaseSeed(seed, holeNumber) };
+        var direction = BuildHoleDirection(holeNumber, rng);
+        var normal = direction.Orthogonal().Normalized();
+        var center = GenerationBounds.GetCenter();
+        var tee = ClampPointToRect(center - direction * 360.0f - normal * 20.0f, GenerationBounds.Grow(-34.0f));
+        var cup = ClampPointToRect(center + direction * 360.0f + normal * 22.0f, GenerationBounds.Grow(-34.0f));
         var fairwayCenterLine = new List<Vector2>
         {
             tee,
-            new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.35f, centerY - 35.0f),
-            new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.65f, centerY + 35.0f),
+            tee.Lerp(cup, 0.35f) + normal * 56.0f,
+            tee.Lerp(cup, 0.65f) - normal * 52.0f,
             cup
         };
 
@@ -157,7 +185,7 @@ public partial class HoleGenerator : Node
             Bounds = GenerationBounds,
             TeePosition = tee,
             CupPosition = cup,
-            WindDirection = Vector2.Right,
+            WindDirection = direction,
             WindStrength = MinWindStrength,
             FairwayPathPoints = fairwayCenterLine,
             RoughPolygon = BuildRectPolygon(GenerationBounds),
@@ -171,13 +199,13 @@ public partial class HoleGenerator : Node
             WaterPolygons = new List<Vector2[]>(),
             TreeAreaPolygons = new List<Vector2[]>
             {
-                BuildEllipsePolygon(new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.62f, centerY - 90.0f), 70.0f, 42.0f, 0.2f, 14)
+                BuildEllipsePolygon(tee.Lerp(cup, 0.58f) + normal * 100.0f, 70.0f, 42.0f, 0.2f, 14)
             },
             TreeObstacles = new List<TreeObstacleLayout>
             {
-                new TreeObstacleLayout { Position = new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.60f, centerY - 92.0f), Radius = 18.0f },
-                new TreeObstacleLayout { Position = new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.64f, centerY - 85.0f), Radius = 16.0f },
-                new TreeObstacleLayout { Position = new Vector2(GenerationBounds.Position.X + GenerationBounds.Size.X * 0.66f, centerY - 104.0f), Radius = 17.0f }
+                new TreeObstacleLayout { Position = tee.Lerp(cup, 0.57f) + normal * 92.0f, Radius = 18.0f },
+                new TreeObstacleLayout { Position = tee.Lerp(cup, 0.61f) + normal * 86.0f, Radius = 16.0f },
+                new TreeObstacleLayout { Position = tee.Lerp(cup, 0.65f) + normal * 102.0f, Radius = 17.0f }
             }
         };
     }
@@ -231,5 +259,22 @@ public partial class HoleGenerator : Node
         }
 
         return polygon;
+    }
+
+    private Vector2 BuildHoleDirection(int holeNumber, RandomNumberGenerator rng)
+    {
+        var baseIndex = Mathf.Abs(holeNumber - 1) % DirectionPresets.Length;
+        var variantOffset = rng.RandiRange(0, 2);
+        var direction = DirectionPresets[(baseIndex + variantOffset) % DirectionPresets.Length];
+        var jitterRadians = Mathf.DegToRad(rng.RandfRange(-OrientationJitterDegrees, OrientationJitterDegrees));
+        direction = direction.Rotated(jitterRadians).Normalized();
+        return direction == Vector2.Zero ? Vector2.Right : direction;
+    }
+
+    private static Vector2 ClampPointToRect(Vector2 point, Rect2 bounds)
+    {
+        return new Vector2(
+            Mathf.Clamp(point.X, bounds.Position.X, bounds.End.X),
+            Mathf.Clamp(point.Y, bounds.Position.Y, bounds.End.Y));
     }
 }

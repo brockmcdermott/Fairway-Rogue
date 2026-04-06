@@ -173,7 +173,8 @@ public partial class TerrainPainter : Node
         {
             if (children[i] is Node child)
             {
-                child.QueueFree();
+                // Avoid removing collision objects during physics callbacks.
+                child.CallDeferred(Node.MethodName.QueueFree);
             }
         }
     }

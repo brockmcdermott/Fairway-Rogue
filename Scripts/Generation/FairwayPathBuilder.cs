@@ -21,6 +21,8 @@ public class FairwayPathBuilder
 
         var normal = direction.Orthogonal().Normalized();
         var safeBounds = allowedBounds.Grow(-10.0f);
+        var primaryCurveSign = rng.Randf() < 0.5f ? -1.0f : 1.0f;
+        var sCurveBlend = rng.RandfRange(0.25f, 0.75f);
 
         var clampedControlCount = Mathf.Clamp(controlPointCount, 1, 6);
         for (var i = 1; i <= clampedControlCount; i += 1)
@@ -29,7 +31,10 @@ public class FairwayPathBuilder
             var basePoint = teePosition.Lerp(cupPosition, t);
             var falloff = 0.4f + 0.6f * Mathf.Sin(Mathf.Pi * t);
             var along = rng.RandfRange(-20.0f, 20.0f);
-            var lateral = rng.RandfRange(-maxLateralJitter, maxLateralJitter) * falloff;
+            var curve = primaryCurveSign * maxLateralJitter * Mathf.Sin(Mathf.Pi * t) * sCurveBlend;
+            var randomLateral = rng.RandfRange(-maxLateralJitter * 0.55f, maxLateralJitter * 0.55f);
+            var alternatingBend = ((i & 1) == 0 ? -1.0f : 1.0f) * maxLateralJitter * 0.20f * (1.0f - sCurveBlend);
+            var lateral = (curve + randomLateral + alternatingBend) * falloff;
 
             var candidate = basePoint + direction * along + normal * lateral;
             points.Add(ClampToRect(candidate, safeBounds));

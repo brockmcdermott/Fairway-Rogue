@@ -8,11 +8,15 @@ public partial class HUDController : Control
     public delegate void RecoveryPromptRequestedHandler();
     public event RecoveryPromptRequestedHandler? RecoveryPromptRequested;
 
+    public delegate void ClubSelectionRequestedHandler(ClubType clubType);
+    public event ClubSelectionRequestedHandler? ClubSelectionRequested;
+
     private Label? _holeLabel;
     private Label? _parLabel;
     private Label? _strokeLabel;
     private Label? _clubLabel;
     private Label? _powerLabel;
+    private Label? _shotProfileLabel;
     private Label? _lieLabel;
     private Label? _distanceLabel;
     private Label? _windLabel;
@@ -20,6 +24,10 @@ public partial class HUDController : Control
     private Label? _debugLabel;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
+    private Button? _driverButton;
+    private Button? _ironButton;
+    private Button? _wedgeButton;
+    private Button? _putterButton;
     private AudioManager? AudioManagerSingleton => AutoloadLocator.Get<AudioManager>(this, nameof(AudioManager));
 
     public override void _Ready()
@@ -29,6 +37,7 @@ public partial class HUDController : Control
         _strokeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StrokeLabel");
         _clubLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ClubLabel");
         _powerLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/PowerLabel");
+        _shotProfileLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ShotProfileLabel");
         _lieLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/LieLabel");
         _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
         _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
@@ -36,6 +45,10 @@ public partial class HUDController : Control
         _debugLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DebugLabel");
         _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
         _recoveryTestButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
+        _driverButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/DriverButton");
+        _ironButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/IronButton");
+        _wedgeButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/WedgeButton");
+        _putterButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/PutterButton");
 
         if (_returnToMenuButton != null)
         {
@@ -54,6 +67,11 @@ public partial class HUDController : Control
                 RecoveryPromptRequested?.Invoke();
             };
         }
+
+        BindClubButton(_driverButton, ClubType.Driver);
+        BindClubButton(_ironButton, ClubType.Iron);
+        BindClubButton(_wedgeButton, ClubType.Wedge);
+        BindClubButton(_putterButton, ClubType.Putter);
     }
 
     public void SetTopLevelData(int holeNumber, int par, int strokes, string clubName, string windText)
@@ -117,6 +135,14 @@ public partial class HUDController : Control
         }
     }
 
+    public void SetShotProfile(string profileText)
+    {
+        if (_shotProfileLabel != null)
+        {
+            _shotProfileLabel.Text = profileText;
+        }
+    }
+
     public void SetLieType(TerrainType terrainType)
     {
         if (_lieLabel != null)
@@ -142,6 +168,14 @@ public partial class HUDController : Control
         }
     }
 
+    public void SetSelectedClub(ClubType clubType)
+    {
+        SetClubButtonState(_driverButton, clubType == ClubType.Driver);
+        SetClubButtonState(_ironButton, clubType == ClubType.Iron);
+        SetClubButtonState(_wedgeButton, clubType == ClubType.Wedge);
+        SetClubButtonState(_putterButton, clubType == ClubType.Putter);
+    }
+
     public void SetDebugInfo(string message, bool visible)
     {
         if (_debugLabel == null)
@@ -154,5 +188,29 @@ public partial class HUDController : Control
         {
             _debugLabel.Text = message;
         }
+    }
+
+    private void BindClubButton(Button? button, ClubType clubType)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.Pressed += () =>
+        {
+            AudioManagerSingleton?.PlaySfx("ui_click");
+            ClubSelectionRequested?.Invoke(clubType);
+        };
+    }
+
+    private static void SetClubButtonState(Button? button, bool selected)
+    {
+        if (button == null)
+        {
+            return;
+        }
+
+        button.Disabled = selected;
     }
 }

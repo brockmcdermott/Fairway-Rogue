@@ -128,7 +128,7 @@ public partial class AudioManager : Node
         {
             if (GodotObject.IsInstanceValid(player))
             {
-                player.QueueFree();
+                player.CallDeferred(Node.MethodName.QueueFree);
             }
         };
     }

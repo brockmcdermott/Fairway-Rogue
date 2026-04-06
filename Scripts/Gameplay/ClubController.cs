@@ -38,6 +38,24 @@ public partial class ClubController : Node
         return CurrentClub;
     }
 
+    public ClubData SelectClubType(ClubType clubType)
+    {
+        for (var i = 0; i < ClubOrder.Length; i += 1)
+        {
+            if (ClubOrder[i] != clubType)
+            {
+                continue;
+            }
+
+            SelectedClubIndex = i;
+            EmitClubChanged();
+            return CurrentClub;
+        }
+
+        EmitClubChanged();
+        return CurrentClub;
+    }
+
     public void RefreshCurrentClubData()
     {
         EmitClubChanged();

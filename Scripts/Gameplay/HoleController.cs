@@ -5,6 +5,14 @@ public partial class HoleController : Node2D
 {
     [Export] public int HoleNumber { get; set; } = 1;
     [Export] public int Par { get; set; } = 4;
+    [ExportGroup("Cup Capture")]
+    [Export] public float CupCaptureMaxSpeed { get; set; } = 105.0f;
+    [Export] public float CupLipOutSpeedScale { get; set; } = 0.76f;
+    [Export] public float CupLipOutMinSpeed { get; set; } = 82.0f;
+    [Export] public float CupLipOutAngleJitterDegrees { get; set; } = 17.0f;
+    [Export] public float CupRejectOffsetDistance { get; set; } = 18.0f;
+    [Export] public float CupRejectCooldownSeconds { get; set; } = 0.14f;
+    [Export] public bool VerboseCupDebug { get; set; }
 
     public int LocalStrokeCount { get; private set; }
     public bool IsHoleComplete { get; private set; }
@@ -15,11 +23,13 @@ public partial class HoleController : Node2D
     public Vector2 CupPosition => _cupArea?.GlobalPosition ?? GlobalPosition;
 
     public event Action<HoleResultData>? HoleCompleted;
+    public event Action<float, float>? CupRejectedBySpeed;
 
     private Marker2D? _teeMarker;
     private Area2D? _cupArea;
     private BallController? _trackedBall;
     private Polygon2D? _roughPolygon;
+    private float _cupRejectCooldownRemaining;
 
     public override void _Ready()
     {
@@ -33,6 +43,16 @@ public partial class HoleController : Node2D
         }
 
         ResetHoleState();
+    }
+
+    public override void _PhysicsProcess(double delta)
+    {
+        if (_cupRejectCooldownRemaining <= 0.0f)
+        {
+            return;
+        }
+
+        _cupRejectCooldownRemaining = Mathf.Max(0.0f, _cupRejectCooldownRemaining - (float)delta);
     }
 
     public void BindBall(BallController ball)
@@ -132,6 +152,7 @@ public partial class HoleController : Node2D
     {
         LocalStrokeCount = 0;
         IsHoleComplete = false;
+        _cupRejectCooldownRemaining = 0.0f;
     }
 
     private void OnCupAreaEntered(Area2D area)
@@ -151,6 +172,13 @@ public partial class HoleController : Node2D
             return;
         }
 
+        var ballSpeed = _trackedBall.Velocity.Length();
+        if (_trackedBall.IsAirborne || ballSpeed > CupCaptureMaxSpeed)
+        {
+            RejectCupEntry(ballSpeed);
+            return;
+        }
+
         CompleteHole();
     }
 
@@ -160,5 +188,46 @@ public partial class HoleController : Node2D
         var result = BuildHoleResult();
         HoleCompleted?.Invoke(result);
         GD.Print($"[HoleController] Hole complete. Hole {HoleNumber}, strokes: {LocalStrokeCount}");
+    }
+
+    private void RejectCupEntry(float incomingSpeed)
+    {
+        if (_trackedBall == null || _cupRejectCooldownRemaining > 0.0f)
+        {
+            return;
+        }
+
+        _cupRejectCooldownRemaining = Mathf.Max(0.01f, CupRejectCooldownSeconds);
+
+        var cupPosition = CupPosition;
+        var incomingDirection = _trackedBall.Velocity.LengthSquared() > 0.001f
+            ? _trackedBall.Velocity.Normalized()
+            : (_trackedBall.GlobalPosition - cupPosition).Normalized();
+        if (incomingDirection == Vector2.Zero)
+        {
+            incomingDirection = Vector2.Right;
+        }
+
+        var jitter = Mathf.DegToRad(GetDeterministicJitter(incomingSpeed));
+        var outDirection = incomingDirection.Rotated(jitter).Normalized();
+        var outSpeed = Mathf.Max(CupLipOutMinSpeed, incomingSpeed * CupLipOutSpeedScale);
+        var pushDistance = Mathf.Max(CupRejectOffsetDistance, _trackedBall.Radius + 6.0f);
+
+        _trackedBall.GlobalPosition = cupPosition + outDirection * pushDistance;
+        _trackedBall.OverrideMotion(outDirection * outSpeed);
+
+        CupRejectedBySpeed?.Invoke(incomingSpeed, CupCaptureMaxSpeed);
+        if (VerboseCupDebug)
+        {
+            GD.Print($"[HoleController] Cup lip-out: incoming {incomingSpeed:0.0}, threshold {CupCaptureMaxSpeed:0.0}");
+        }
+    }
+
+    private float GetDeterministicJitter(float incomingSpeed)
+    {
+        var sign = ((LocalStrokeCount + HoleNumber) & 1) == 0 ? 1.0f : -1.0f;
+        var seeded = Mathf.Abs(Mathf.Sin((incomingSpeed + HoleNumber * 7.31f + LocalStrokeCount * 4.19f) * 0.061f));
+        var jitter = Mathf.Lerp(4.0f, Mathf.Max(4.0f, CupLipOutAngleJitterDegrees), seeded);
+        return jitter * sign;
     }
 }

@@ -23,8 +23,17 @@ public partial class BallController : Area2D
     [Export] public float StallDistanceThreshold { get; set; } = 0.6f;
     [Export] public bool VerboseDebugLogging { get; set; }
 
+    [ExportGroup("Pseudo-3D Carry")]
+    [Export] public float AirborneMinSeconds { get; set; } = 0.04f;
+    [Export] public float AirborneMaxSeconds { get; set; } = 0.62f;
+    [Export] public float AirborneDragPerSecond { get; set; } = 72.0f;
+    [Export] public float AirborneMaxVisualHeight { get; set; } = 46.0f;
+    [Export] public bool IgnoreTerrainWhileAirborne { get; set; } = true;
+
     public Vector2 Velocity { get; private set; } = Vector2.Zero;
     public bool IsMoving { get; private set; }
+    public bool IsAirborne { get; private set; }
+    public float VisualHeight { get; private set; }
     public bool MovementEnabled { get; private set; } = true;
     public float SpeedRatio => MaxLaunchSpeed <= 0.0f ? 0.0f : Mathf.Clamp(Velocity.Length() / MaxLaunchSpeed, 0.0f, 1.0f);
     public TerrainType CurrentTerrainType { get; private set; } = TerrainType.Tee;
@@ -41,6 +50,10 @@ public partial class BallController : Area2D
     private float _movementElapsed;
     private float _stallElapsed;
     private Vector2 _lastMovementPosition = Vector2.Zero;
+    private float _airborneDuration;
+    private float _airborneElapsed;
+    private float _shotLoftFactor;
+    private float _launchSpeedRatio;
 
     public override void _Ready()
     {
@@ -97,8 +110,9 @@ public partial class BallController : Area2D
         }
 
         var speed = Velocity.Length();
-        var terrainFriction = CurrentTerrainProperties.FrictionMultiplier;
-        var deceleration = BaseFrictionPerSecond * _activeFrictionMultiplier * terrainFriction * dt;
+        var deceleration = IsAirborne
+            ? AirborneDragPerSecond * dt
+            : BaseFrictionPerSecond * _activeFrictionMultiplier * CurrentTerrainProperties.FrictionMultiplier * dt;
         var nextSpeed = Mathf.Max(speed - deceleration, 0.0f);
 
         if (nextSpeed <= Mathf.Max(0.0f, HardSnapStopSpeed))
@@ -110,9 +124,11 @@ public partial class BallController : Area2D
             Velocity = Velocity.Normalized() * nextSpeed;
         }
 
+        UpdateAirborneState(dt);
+
         var travelled = GlobalPosition.DistanceTo(_lastMovementPosition);
         _lastMovementPosition = GlobalPosition;
-        if (travelled <= Mathf.Max(0.0f, StallDistanceThreshold))
+        if (!IsAirborne && travelled <= Mathf.Max(0.0f, StallDistanceThreshold))
         {
             _stallElapsed += dt;
             if (_stallElapsed >= Mathf.Max(0.1f, StallDetectSeconds))
@@ -131,7 +147,7 @@ public partial class BallController : Area2D
             _stallElapsed = 0.0f;
         }
 
-        if (Velocity.Length() <= StopSpeedThreshold)
+        if (Velocity.Length() <= StopSpeedThreshold && !IsAirborne)
         {
             _settleTimer += dt;
             if (_settleTimer >= StopSettleTime)
@@ -145,7 +161,7 @@ public partial class BallController : Area2D
         }
     }
 
-    public void Launch(Vector2 direction, float launchSpeed, float frictionMultiplier)
+    public void Launch(Vector2 direction, float launchSpeed, float frictionMultiplier, float loftFactor = 0.0f)
     {
         if (!MovementEnabled || direction == Vector2.Zero)
         {
@@ -163,6 +179,12 @@ public partial class BallController : Area2D
         _activeFrictionMultiplier = Mathf.Max(0.1f, frictionMultiplier);
         Velocity = direction.Normalized() * clampedSpeed;
         IsMoving = true;
+        _shotLoftFactor = Mathf.Clamp(loftFactor, 0.0f, 1.0f);
+        _launchSpeedRatio = MaxLaunchSpeed <= 0.0f ? 0.0f : Mathf.Clamp(clampedSpeed / MaxLaunchSpeed, 0.0f, 1.0f);
+        _airborneDuration = EstimateCarrySeconds(_shotLoftFactor, _launchSpeedRatio);
+        _airborneElapsed = 0.0f;
+        IsAirborne = _airborneDuration > 0.01f;
+        VisualHeight = 0.0f;
         _settleTimer = 0.0f;
         _movementElapsed = 0.0f;
         _stallElapsed = 0.0f;
@@ -194,6 +216,11 @@ public partial class BallController : Area2D
 
     public void SetTerrain(TerrainType terrainType)
     {
+        if (IgnoreTerrainWhileAirborne && IsAirborne)
+        {
+            return;
+        }
+
         if (terrainType == CurrentTerrainType)
         {
             return;
@@ -222,8 +249,38 @@ public partial class BallController : Area2D
         _movementElapsed = 0.0f;
         _stallElapsed = 0.0f;
         _lastMovementPosition = GlobalPosition;
+        _airborneDuration = 0.0f;
+        _airborneElapsed = 0.0f;
+        _shotLoftFactor = 0.0f;
+        _launchSpeedRatio = 0.0f;
+        IsAirborne = false;
+        VisualHeight = 0.0f;
 
         BallStopped?.Invoke();
+    }
+
+    public void OverrideMotion(Vector2 velocity)
+    {
+        Velocity = velocity;
+        IsMoving = velocity.Length() > HardSnapStopSpeed;
+        IsAirborne = false;
+        VisualHeight = 0.0f;
+        _airborneDuration = 0.0f;
+        _airborneElapsed = 0.0f;
+        _shotLoftFactor = 0.0f;
+        _launchSpeedRatio = MaxLaunchSpeed <= 0.0f ? 0.0f : Mathf.Clamp(velocity.Length() / MaxLaunchSpeed, 0.0f, 1.0f);
+        _settleTimer = 0.0f;
+        _movementElapsed = 0.0f;
+        _stallElapsed = 0.0f;
+        _lastMovementPosition = GlobalPosition;
+    }
+
+    public float EstimateCarrySeconds(float loftFactor, float normalizedPower)
+    {
+        var loft = Mathf.Clamp(loftFactor, 0.0f, 1.0f);
+        var power = Mathf.Clamp(normalizedPower, 0.0f, 1.0f);
+        var carryBlend = loft * Mathf.Lerp(0.28f, 1.0f, power);
+        return Mathf.Lerp(0.0f, Mathf.Max(AirborneMinSeconds, AirborneMaxSeconds), carryBlend);
     }
 
     public override void _Draw()
@@ -267,6 +324,33 @@ public partial class BallController : Area2D
         }
 
         GlobalPosition = pos;
+    }
+
+    private void UpdateAirborneState(float dt)
+    {
+        if (!IsAirborne)
+        {
+            VisualHeight = 0.0f;
+            return;
+        }
+
+        _airborneElapsed += dt;
+        var progress = _airborneDuration <= 0.001f
+            ? 1.0f
+            : Mathf.Clamp(_airborneElapsed / _airborneDuration, 0.0f, 1.0f);
+        var arc = 4.0f * progress * (1.0f - progress);
+        var launchScale = Mathf.Lerp(0.45f, 1.0f, _launchSpeedRatio);
+        VisualHeight = Mathf.Max(0.0f, AirborneMaxVisualHeight * _shotLoftFactor * launchScale * arc);
+
+        if (progress < 1.0f)
+        {
+            return;
+        }
+
+        IsAirborne = false;
+        VisualHeight = 0.0f;
+        _airborneDuration = 0.0f;
+        _airborneElapsed = 0.0f;
     }
 
     private static bool IsVectorFinite(Vector2 vector)

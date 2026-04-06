@@ -10,6 +10,8 @@ public partial class HazardResolver : Node
     [Export] public int RecoverySearchAngleSamples { get; set; } = 20;
     [Export] public float RecoveryCollisionRadiusScale { get; set; } = 0.9f;
     [Export] public float TreeDropMaxRadius { get; set; } = 150.0f;
+    [Export] public float TreeDropBackStep { get; set; } = 22.0f;
+    [Export] public float TreeDropBackMaxDistance { get; set; } = 180.0f;
 
     [ExportGroup("Safety")]
     [Export] public float HazardReentryCooldownSeconds { get; set; } = 0.15f;
@@ -80,7 +82,7 @@ public partial class HazardResolver : Node
             return;
         }
 
-        _hud.SetStatusMessage("Play from lie selected. No penalty.");
+        _hud.SetStatusMessage("Play from lie selected. Tree obstruction penalties remain active.");
         EndRecoveryPrompt();
     }
 
@@ -295,6 +297,11 @@ public partial class HazardResolver : Node
             return obstructedPosition;
         }
 
+        if (TryFindBackwardTreeDrop(obstructedPosition, out var backwardDrop))
+        {
+            return backwardDrop;
+        }
+
         if (TrySearchForTreeDropAround(obstructedPosition, out var nearObstructedLie))
         {
             return nearObstructedLie;
@@ -316,6 +323,43 @@ public partial class HazardResolver : Node
         }
 
         return FindRecoveryPosition(obstructedPosition);
+    }
+
+    private bool TryFindBackwardTreeDrop(Vector2 obstructedPosition, out Vector2 dropPoint)
+    {
+        dropPoint = obstructedPosition;
+        if (_hole == null)
+        {
+            return false;
+        }
+
+        var awayFromCup = (obstructedPosition - _hole.CupPosition).Normalized();
+        if (awayFromCup == Vector2.Zero)
+        {
+            awayFromCup = (_lastSafePosition - obstructedPosition).Normalized();
+        }
+
+        if (awayFromCup == Vector2.Zero)
+        {
+            awayFromCup = Vector2.Left;
+        }
+
+        var step = Mathf.Max(8.0f, TreeDropBackStep);
+        var maxDistance = Mathf.Max(step, TreeDropBackMaxDistance);
+
+        for (var distance = step; distance <= maxDistance; distance += step)
+        {
+            var candidate = ClampInsidePlayableBounds(obstructedPosition + awayFromCup * distance);
+            if (!IsValidTreeDropPoint(candidate))
+            {
+                continue;
+            }
+
+            dropPoint = candidate;
+            return true;
+        }
+
+        return false;
     }
 
     private bool TrySearchForTreeDropAround(Vector2 center, out Vector2 dropPoint)

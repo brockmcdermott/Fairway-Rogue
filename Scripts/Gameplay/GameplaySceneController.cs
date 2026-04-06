@@ -55,6 +55,7 @@ public partial class GameplaySceneController : Node2D
         if (_hud != null)
         {
             _hud.MainMenuRequested += OnMainMenuRequested;
+            _hud.ClubSelectionRequested += OnClubSelectionRequested;
             _hud.SetRecoveryPromptVisible(false);
         }
 
@@ -65,6 +66,7 @@ public partial class GameplaySceneController : Node2D
         if (_holeController != null)
         {
             _holeController.HoleCompleted += OnHoleCompleted;
+            _holeController.CupRejectedBySpeed += OnCupRejectedBySpeed;
         }
 
         if (_recoveryDialog != null)
@@ -279,7 +281,7 @@ public partial class GameplaySceneController : Node2D
 
     private string BuildHudWindAndControlsText()
     {
-        const string controls = "Aim: Left/Right | Club: Up/Down | Hold Space: Power";
+        const string controls = "Aim: Left/Right | Club: 1-4 or Up/Down | Hold Space: Power";
         if (_activeLayout == null)
         {
             return controls;
@@ -317,6 +319,16 @@ public partial class GameplaySceneController : Node2D
         GameManagerSingleton?.GoToMainMenu();
     }
 
+    private void OnClubSelectionRequested(ClubType clubType)
+    {
+        if (_ballController != null && _ballController.IsMoving)
+        {
+            return;
+        }
+
+        _clubController?.SelectClubType(clubType);
+    }
+
     private void OnTreeRecoveryPromptRequested()
     {
         _recoveryDialog?.ShowDialog("Ball is obstructed in the trees.\nTake a drop for +1 stroke or play from lie.");
@@ -344,11 +356,17 @@ public partial class GameplaySceneController : Node2D
         GameManagerSingleton?.SubmitHoleResult(holeResult);
     }
 
+    private void OnCupRejectedBySpeed(float incomingSpeed, float threshold)
+    {
+        _hud?.SetStatusMessage($"Lip-out: speed {incomingSpeed:0.0} exceeds cup capture {threshold:0.0}.");
+    }
+
     public override void _ExitTree()
     {
         if (_holeController != null)
         {
             _holeController.HoleCompleted -= OnHoleCompleted;
+            _holeController.CupRejectedBySpeed -= OnCupRejectedBySpeed;
         }
 
         if (_recoveryDialog != null)
@@ -360,6 +378,11 @@ public partial class GameplaySceneController : Node2D
         if (_hazardResolver != null)
         {
             _hazardResolver.TreeRecoveryPromptRequested -= OnTreeRecoveryPromptRequested;
+        }
+
+        if (_hud != null)
+        {
+            _hud.ClubSelectionRequested -= OnClubSelectionRequested;
         }
 
         if (_viewport != null)

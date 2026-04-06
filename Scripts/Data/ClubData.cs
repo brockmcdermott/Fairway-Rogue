@@ -18,6 +18,8 @@ public class ClubData
     public float MaxPower { get; set; } = 300.0f;
     public float FrictionMultiplier { get; set; } = 1.0f;
     public float AimGuideScale { get; set; } = 0.35f;
+    public float LoftFactor { get; set; } = 0.45f;
+    public float ShotDispersionDegrees { get; set; } = 1.2f;
 
     public ClubData Clone()
     {
@@ -29,7 +31,9 @@ public class ClubData
             MinPower = MinPower,
             MaxPower = MaxPower,
             FrictionMultiplier = FrictionMultiplier,
-            AimGuideScale = AimGuideScale
+            AimGuideScale = AimGuideScale,
+            LoftFactor = LoftFactor,
+            ShotDispersionDegrees = ShotDispersionDegrees
         };
     }
 }

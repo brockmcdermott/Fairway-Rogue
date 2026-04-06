@@ -15,7 +15,9 @@ public static class ProgressionCatalog
             MinPower = 220.0f,
             MaxPower = 620.0f,
             FrictionMultiplier = 0.95f,
-            AimGuideScale = 0.42f
+            AimGuideScale = 0.42f,
+            LoftFactor = 0.32f,
+            ShotDispersionDegrees = 2.4f
         },
         new ClubData
         {
@@ -25,7 +27,9 @@ public static class ProgressionCatalog
             MinPower = 170.0f,
             MaxPower = 470.0f,
             FrictionMultiplier = 1.00f,
-            AimGuideScale = 0.38f
+            AimGuideScale = 0.38f,
+            LoftFactor = 0.56f,
+            ShotDispersionDegrees = 1.7f
         },
         new ClubData
         {
@@ -35,7 +39,9 @@ public static class ProgressionCatalog
             MinPower = 120.0f,
             MaxPower = 320.0f,
             FrictionMultiplier = 1.08f,
-            AimGuideScale = 0.34f
+            AimGuideScale = 0.34f,
+            LoftFactor = 0.84f,
+            ShotDispersionDegrees = 1.4f
         },
         new ClubData
         {
@@ -45,7 +51,9 @@ public static class ProgressionCatalog
             MinPower = 60.0f,
             MaxPower = 170.0f,
             FrictionMultiplier = 1.18f,
-            AimGuideScale = 0.28f
+            AimGuideScale = 0.28f,
+            LoftFactor = 0.04f,
+            ShotDispersionDegrees = 0.25f
         }
     };
 

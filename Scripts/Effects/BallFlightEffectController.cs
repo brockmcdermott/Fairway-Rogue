@@ -36,11 +36,13 @@ public partial class BallFlightEffectController : Node2D
         }
 
         var dt = (float)delta;
-        var targetLift = _ball.IsMoving ? MaxVisualLift * _ball.SpeedRatio : 0.0f;
+        var airborneLift = _ball.VisualHeight;
+        var groundLift = _ball.IsMoving && !_ball.IsAirborne ? MaxVisualLift * _ball.SpeedRatio * 0.22f : 0.0f;
+        var targetLift = Mathf.Max(airborneLift, groundLift);
         var blend = 1.0f - Mathf.Exp(-LiftLerpSpeed * dt);
         _visualLift = Mathf.Lerp(_visualLift, targetLift, blend);
 
-        if (_ball.IsMoving)
+        if (_ball.IsMoving && !_ball.IsAirborne)
         {
             _bobTime += dt * BobSpeed;
         }
@@ -60,7 +62,7 @@ public partial class BallFlightEffectController : Node2D
         }
 
         var speedRatio = _ball.SpeedRatio;
-        var bob = _ball.IsMoving ? Mathf.Sin(_bobTime) * BobAmplitude * speedRatio : 0.0f;
+        var bob = _ball.IsMoving && !_ball.IsAirborne ? Mathf.Sin(_bobTime) * BobAmplitude * speedRatio : 0.0f;
         var totalLift = Mathf.Max(0.0f, _visualLift + bob);
         var radius = Mathf.Max(1.0f, _ball.Radius);
 

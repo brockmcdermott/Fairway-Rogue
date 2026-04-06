@@ -50,21 +50,18 @@ public partial class SceneRouter : Node
             return Error.FileNotFound;
         }
 
+        _pendingScenePath = scenePath;
+
         if (_changeDeferred)
         {
-            _pendingScenePath = scenePath;
             return Error.Ok;
         }
 
-        if (Engine.IsInPhysicsFrame())
-        {
-            _pendingScenePath = scenePath;
-            _changeDeferred = true;
-            CallDeferred(nameof(ApplyDeferredSceneChange));
-            return Error.Ok;
-        }
-
-        return ChangeSceneImmediate(scenePath);
+        // Always defer scene changes so collision/physics callbacks cannot remove
+        // CollisionObject nodes in the same step.
+        _changeDeferred = true;
+        CallDeferred(nameof(ApplyDeferredSceneChange));
+        return Error.Ok;
     }
 
     private void ApplyDeferredSceneChange()

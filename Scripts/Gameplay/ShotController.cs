@@ -10,6 +10,13 @@ public partial class ShotController : Node2D
     [Export] public float MinChargeRatio { get; set; } = 0.12f;
     [Export] public float AimLineWidth { get; set; } = 3.0f;
 
+    [ExportGroup("Obstruction Penalties")]
+    [Export] public float TreeObstructedPowerMultiplier { get; set; } = 0.78f;
+    [Export] public float TreeObstructedLoftMultiplier { get; set; } = 0.62f;
+    [Export] public float TreeObstructedAccuracyPenaltyDegrees { get; set; } = 9.0f;
+    [Export] public float MaxFinalAccuracyPenaltyDegrees { get; set; } = 16.0f;
+    [Export] public bool AllowNumberKeyClubSwitch { get; set; } = true;
+
     private BallController? _ball;
     private HoleController? _hole;
     private HUDController? _hud;
@@ -66,6 +73,35 @@ public partial class ShotController : Node2D
 
         UpdatePowerHud();
         QueueRedraw();
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!AllowNumberKeyClubSwitch || _clubController == null || !CanTakeShot() || _isCharging)
+        {
+            return;
+        }
+
+        if (@event is not InputEventKey keyEvent || !keyEvent.Pressed || keyEvent.Echo)
+        {
+            return;
+        }
+
+        switch (keyEvent.Keycode)
+        {
+            case Key.Key1:
+                _clubController.SelectClubType(ClubType.Driver);
+                break;
+            case Key.Key2:
+                _clubController.SelectClubType(ClubType.Iron);
+                break;
+            case Key.Key3:
+                _clubController.SelectClubType(ClubType.Wedge);
+                break;
+            case Key.Key4:
+                _clubController.SelectClubType(ClubType.Putter);
+                break;
+        }
     }
 
     public void SetInputEnabled(bool enabled)
@@ -198,7 +234,14 @@ public partial class ShotController : Node2D
         var shotPower = GetCurrentShotPower(club);
         var lieForShot = _lieEvaluator != null ? _lieEvaluator.CurrentLie : TerrainType.Fairway;
         var terrainProperties = TerrainDatabase.GetProperties(lieForShot);
+        var isTreeObstructedLie = _lieEvaluator != null && _hole != null && _ball != null &&
+                                  _lieEvaluator.IsObstructedTreeLie(_ball.GlobalPosition, _hole.CupPosition);
+
         shotPower *= terrainProperties.PowerMultiplier;
+        if (isTreeObstructedLie)
+        {
+            shotPower *= TreeObstructedPowerMultiplier;
+        }
 
         if (shotPower <= 0.01f)
         {
@@ -207,12 +250,35 @@ public partial class ShotController : Node2D
             return;
         }
 
+        var finalDirection = GetAimDirection();
+        var combinedAccuracyPenalty = Mathf.Clamp(
+            terrainProperties.AccuracyPenaltyDegrees +
+            club.ShotDispersionDegrees +
+            (isTreeObstructedLie ? TreeObstructedAccuracyPenaltyDegrees : 0.0f),
+            0.0f,
+            MaxFinalAccuracyPenaltyDegrees);
+        if (combinedAccuracyPenalty > 0.01f)
+        {
+            finalDirection = ApplyDeterministicSpread(finalDirection, combinedAccuracyPenalty);
+        }
+
+        var loftFactor = club.LoftFactor;
+        if (isTreeObstructedLie)
+        {
+            loftFactor *= TreeObstructedLoftMultiplier;
+        }
+        loftFactor = Mathf.Clamp(loftFactor, 0.0f, 1.0f);
+
         _isCharging = false;
 
         _hole!.RegisterStroke();
         _hud!.SetStrokeCount(_hole.LocalStrokeCount);
 
-        _ball!.Launch(GetAimDirection(), shotPower, club.FrictionMultiplier);
+        _ball!.Launch(finalDirection, shotPower, club.FrictionMultiplier, loftFactor);
+        if (isTreeObstructedLie)
+        {
+            _hud?.SetStatusMessage("Playing from obstruction: reduced loft/control.");
+        }
         AudioManagerSingleton?.PlaySfx("shot");
     }
 
@@ -241,7 +307,7 @@ public partial class ShotController : Node2D
 
     private void UpdatePowerHud()
     {
-        if (_hud == null || _clubController == null)
+        if (_hud == null || _clubController == null || _ball == null)
         {
             return;
         }
@@ -254,6 +320,7 @@ public partial class ShotController : Node2D
         power *= terrainProperties.PowerMultiplier;
 
         _hud.SetPower(ratio, power);
+        _hud.SetShotProfile(BuildShotProfileText(club, ratio, lieForHud));
     }
 
     private void CancelCharge()
@@ -265,6 +332,56 @@ public partial class ShotController : Node2D
     private void OnClubChanged(ClubData club)
     {
         _hud?.SetClubName(club.Name);
+        _hud?.SetSelectedClub(club.ClubType);
         UpdatePowerHud();
+    }
+
+    private Vector2 ApplyDeterministicSpread(Vector2 direction, float penaltyDegrees)
+    {
+        if (_hole == null || _ball == null || penaltyDegrees <= 0.0f)
+        {
+            return direction;
+        }
+
+        var seedValue =
+            _hole.HoleNumber * 73856093L +
+            (_hole.LocalStrokeCount + 1) * 19349663L +
+            Mathf.RoundToInt(_ball.GlobalPosition.X * 0.1f) * 83492791L +
+            Mathf.RoundToInt(_ball.GlobalPosition.Y * 0.1f) * 2654435761L;
+        var spreadPhase = Mathf.Sin((float)(seedValue % 2147483647L) * 0.000123f);
+        var spreadDegrees = spreadPhase * penaltyDegrees;
+        return direction.Rotated(Mathf.DegToRad(spreadDegrees)).Normalized();
+    }
+
+    private string BuildShotProfileText(ClubData club, float chargeRatio, TerrainType lieType)
+    {
+        if (_ball == null)
+        {
+            return string.Empty;
+        }
+
+        var terrain = TerrainDatabase.GetProperties(lieType);
+        var obstructed = _lieEvaluator != null && _hole != null &&
+                         _lieEvaluator.IsObstructedTreeLie(_ball.GlobalPosition, _hole.CupPosition);
+
+        var loft = club.LoftFactor * (obstructed ? TreeObstructedLoftMultiplier : 1.0f);
+        var carrySeconds = _ball.EstimateCarrySeconds(loft, chargeRatio);
+        var carryLabel = carrySeconds switch
+        {
+            < 0.08f => "Low",
+            < 0.22f => "Medium",
+            _ => "High"
+        };
+
+        var accuracyPenalty = Mathf.Clamp(
+            terrain.AccuracyPenaltyDegrees +
+            club.ShotDispersionDegrees +
+            (obstructed ? TreeObstructedAccuracyPenaltyDegrees : 0.0f),
+            0.0f,
+            MaxFinalAccuracyPenaltyDegrees);
+
+        var cupSpeedText = _hole != null ? $"Cup <= {_hole.CupCaptureMaxSpeed:0}" : "Cup <= --";
+        var obstructionText = obstructed ? " | Obstructed lie" : string.Empty;
+        return $"Shot: Carry {carryLabel} ({carrySeconds:0.00}s) | Dispersion ±{accuracyPenalty:0.0} deg | {cupSpeedText}{obstructionText}";
     }
 }
