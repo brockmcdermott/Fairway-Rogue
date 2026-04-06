@@ -12,6 +12,7 @@ public partial class MainMenuController : Control
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
     private SceneRouter? SceneRouterSingleton => GetNodeOrNull<SceneRouter>("/root/SceneRouter");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -49,6 +50,7 @@ public partial class MainMenuController : Control
 
         RefreshContinueButton();
         GameManagerSingleton?.ChangeState(GameState.MainMenu);
+        AudioManagerSingleton?.PlayMusic("menu");
     }
 
     private void RefreshContinueButton()
@@ -59,22 +61,32 @@ public partial class MainMenuController : Control
         }
 
         var hasSave = SaveManagerSingleton?.HasRunSave() ?? false;
+        if (hasSave && !(SaveManagerSingleton?.TryLoadRun(out _) ?? false))
+        {
+            SaveManagerSingleton?.DeleteRunSave();
+            hasSave = false;
+        }
+
         _continueButton.Visible = hasSave;
         _continueButton.Disabled = !hasSave;
     }
 
     private void OnNewRunPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.StartNewRun();
     }
 
     private void OnContinuePressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.ResumeRun();
+        RefreshContinueButton();
     }
 
     private void OnSettingsPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         SceneRouterSingleton?.GoToSettings();
     }
 
@@ -86,13 +98,35 @@ public partial class MainMenuController : Control
         }
 
         var highScore = SaveManagerSingleton?.LoadHighScore() ?? 0;
-        _highScoresDialog.DialogText = "High Scores are a placeholder for now.\n\n" +
-                                 $"Best Score (relative to par): {highScore}";
+        var bestRun = SaveManagerSingleton?.LoadBestRun();
+        var bestRunText = "No completed run saved yet.";
+        if (bestRun != null)
+        {
+            var bestRelativeText = HoleResultData.FormatRelativeScore(bestRun.ScoreRelativeToPar);
+            bestRunText =
+                $"Best Run: {bestRelativeText}\n" +
+                $"Strokes/Par: {bestRun.TotalStrokes}/{bestRun.TotalPar}\n" +
+                $"Holes: {bestRun.HolesCompleted}/{bestRun.TotalHoles}\n" +
+                $"Currency Earned: {bestRun.CurrencyEarned}";
+        }
+
+        _highScoresDialog.DialogText =
+            "High Scores\n\n" +
+            $"Best Score (relative to par): {highScore}\n\n" +
+            bestRunText;
+        AudioManagerSingleton?.PlaySfx("ui_click");
         _highScoresDialog.PopupCentered();
     }
 
     private void OnQuitPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
+        if (GameManagerSingleton != null)
+        {
+            GameManagerSingleton.QuitGame();
+            return;
+        }
+
         GetTree().Quit();
     }
 }

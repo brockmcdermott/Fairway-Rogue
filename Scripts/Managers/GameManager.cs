@@ -21,6 +21,7 @@ public partial class GameManager : Node
     public GameState CurrentState { get; private set; } = GameState.MainMenu;
 
     private GameState _stateBeforePause = GameState.InHole;
+    private Window? _rootWindow;
 
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
     private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
@@ -28,6 +29,12 @@ public partial class GameManager : Node
 
     public override void _Ready()
     {
+        _rootWindow = GetTree().Root;
+        if (_rootWindow != null)
+        {
+            _rootWindow.CloseRequested += OnRootCloseRequested;
+        }
+
         ChangeState(GameState.MainMenu);
     }
 
@@ -82,10 +89,10 @@ public partial class GameManager : Node
             return;
         }
 
-        var saveData = saveManager.LoadRun();
-        if (saveData == null)
+        if (!saveManager.TryLoadRun(out var saveData) || saveData == null)
         {
             GD.PushWarning("[GameManager] Save exists but could not be loaded. Staying in menu.");
+            saveManager.DeleteRunSave();
             return;
         }
 
@@ -195,6 +202,7 @@ public partial class GameManager : Node
         }
 
         _stateBeforePause = CurrentState;
+        SaveCurrentRunIfAvailable();
         ChangeState(GameState.Paused);
         GetTree().Paused = true;
     }
@@ -213,7 +221,7 @@ public partial class GameManager : Node
     public void SaveCurrentRunIfAvailable()
     {
         var runManager = RunManagerSingleton;
-        if (runManager == null)
+        if (runManager == null || !runManager.HasActiveRun)
         {
             return;
         }
@@ -223,9 +231,46 @@ public partial class GameManager : Node
 
     public void GoToMainMenu()
     {
-        SaveCurrentRunIfAvailable();
+        if (CurrentState == GameState.RunComplete)
+        {
+            SaveManagerSingleton?.DeleteRunSave();
+        }
+        else
+        {
+            SaveCurrentRunIfAvailable();
+        }
+
         SceneRouterSingleton?.GoToMainMenu();
         ChangeState(GameState.MainMenu);
         GetTree().Paused = false;
+    }
+
+    public void QuitGame()
+    {
+        if (CurrentState == GameState.RunComplete)
+        {
+            SaveManagerSingleton?.DeleteRunSave();
+        }
+        else
+        {
+            SaveCurrentRunIfAvailable();
+        }
+
+        GetTree().Quit();
+    }
+
+    public override void _ExitTree()
+    {
+        if (_rootWindow != null)
+        {
+            _rootWindow.CloseRequested -= OnRootCloseRequested;
+        }
+
+        base._ExitTree();
+    }
+
+    private void OnRootCloseRequested()
+    {
+        QuitGame();
     }
 }

@@ -19,6 +19,7 @@ public partial class HUDController : Control
     private Label? _statusLabel;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -36,12 +37,20 @@ public partial class HUDController : Control
 
         if (_returnToMenuButton != null)
         {
-            _returnToMenuButton.Pressed += () => MainMenuRequested?.Invoke();
+            _returnToMenuButton.Pressed += () =>
+            {
+                AudioManagerSingleton?.PlaySfx("ui_click");
+                MainMenuRequested?.Invoke();
+            };
         }
 
         if (_recoveryTestButton != null)
         {
-            _recoveryTestButton.Pressed += () => RecoveryPromptRequested?.Invoke();
+            _recoveryTestButton.Pressed += () =>
+            {
+                AudioManagerSingleton?.PlaySfx("ui_click");
+                RecoveryPromptRequested?.Invoke();
+            };
         }
     }
 

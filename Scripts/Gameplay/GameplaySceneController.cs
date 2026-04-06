@@ -2,6 +2,10 @@ using Godot;
 
 public partial class GameplaySceneController : Node2D
 {
+    [ExportGroup("Debug Hooks")]
+    [Export] public bool UseProceduralGeneration { get; set; } = true;
+    [Export] public int DebugSeedOverride { get; set; }
+
     private HUDController? _hud;
     private HoleController? _holeController;
     private BallController? _ballController;
@@ -16,9 +20,12 @@ public partial class GameplaySceneController : Node2D
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
+        ProcessMode = ProcessModeEnum.Always;
+
         _hud = GetNodeOrNull<HUDController>("HUD");
         _holeController = GetNodeOrNull<HoleController>("HoleRoot/StaticPracticeHole");
         _ballController = GetNodeOrNull<BallController>("Ball");
@@ -35,6 +42,8 @@ public partial class GameplaySceneController : Node2D
             _hud.MainMenuRequested += OnMainMenuRequested;
             _hud.SetRecoveryPromptVisible(false);
         }
+
+        AudioManagerSingleton?.PlayMusic("gameplay");
 
         GenerateAndApplyHoleLayout();
 
@@ -79,6 +88,34 @@ public partial class GameplaySceneController : Node2D
         InitializeHud();
 
         GameManagerSingleton?.ChangeState(GameState.InHole);
+        GameManagerSingleton?.SaveCurrentRunIfAvailable();
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (!@event.IsActionPressed("ui_cancel"))
+        {
+            return;
+        }
+
+        var manager = GameManagerSingleton;
+        if (manager == null)
+        {
+            return;
+        }
+
+        if (manager.CurrentState == GameState.Paused)
+        {
+            manager.UnpauseGame();
+            _hud?.SetStatusMessage("Resumed.");
+            return;
+        }
+
+        if (manager.CurrentState == GameState.InHole || manager.CurrentState == GameState.RecoveryPrompt)
+        {
+            manager.PauseGame();
+            _hud?.SetStatusMessage("Paused. Press Esc to resume.");
+        }
     }
 
     public override void _Process(double delta)
@@ -131,10 +168,17 @@ public partial class GameplaySceneController : Node2D
         }
 
         var run = RunManagerSingleton;
-        var runSeed = run?.Seed ?? (int)Time.GetUnixTimeFromSystem();
+        var runSeed = DebugSeedOverride != 0 ? DebugSeedOverride : run?.Seed ?? (int)Time.GetUnixTimeFromSystem();
         var holeIndex = run?.CurrentHoleIndex ?? _holeController.HoleNumber;
-        var totalHoles = run?.TotalHoles ?? RunManager.DefaultTotalHoles;
+        if (!UseProceduralGeneration)
+        {
+            _activeLayout = null;
+            _holeController.HoleNumber = holeIndex;
+            _hud?.SetStatusMessage("Debug static practice hole enabled.");
+            return;
+        }
 
+        var totalHoles = run?.TotalHoles ?? RunManager.DefaultTotalHoles;
         _activeLayout = _holeGenerator.GenerateLayout(runSeed, holeIndex, totalHoles);
         _holeController.ApplyGeneratedLayout(_activeLayout, _terrainPainter);
         if (_activeLayout == null)
@@ -143,7 +187,7 @@ public partial class GameplaySceneController : Node2D
         }
 
         var direction = GetCompassDirection(_activeLayout.WindDirection);
-        _hud?.SetStatusMessage($"Generated hole {_activeLayout.HoleNumber} | Wind {direction} {_activeLayout.WindStrength:0.00}");
+        _hud?.SetStatusMessage($"Generated hole {_activeLayout.HoleNumber} (Seed {_activeLayout.Seed}) | Wind {direction} {_activeLayout.WindStrength:0.00}");
     }
 
     private string BuildHudWindAndControlsText()
@@ -209,6 +253,7 @@ public partial class GameplaySceneController : Node2D
 
         _hud?.SetStrokeCount(holeResult.Strokes);
         _hud?.SetStatusMessage($"Hole complete: {holeResult.Label} ({holeResult.RelativeScoreText}).");
+        AudioManagerSingleton?.PlaySfx("hole_complete");
         GameManagerSingleton?.SubmitHoleResult(holeResult);
     }
 

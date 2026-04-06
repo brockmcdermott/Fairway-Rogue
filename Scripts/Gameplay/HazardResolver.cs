@@ -25,6 +25,7 @@ public partial class HazardResolver : Node
     private Vector2 _lastSafePosition = Vector2.Zero;
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public Vector2 PreviousShotPosition => _previousShotPosition;
     public Vector2 LastSafePosition => _lastSafePosition;
@@ -134,6 +135,11 @@ public partial class HazardResolver : Node
             return;
         }
 
+        if (_ball.CurrentTerrainType == TerrainType.Sand)
+        {
+            AudioManagerSingleton?.PlaySfx("sand_impact");
+        }
+
         _hud.SetStatusMessage("Ready for next shot.");
     }
 
@@ -173,6 +179,10 @@ public partial class HazardResolver : Node
 
         _ball.StopBall();
         _hole.AddPenaltyStroke(1);
+        if (terrainType == TerrainType.Water)
+        {
+            AudioManagerSingleton?.PlaySfx("splash");
+        }
 
         var recoveryPosition = FindRecoveryPosition(entryPosition);
         _ball.ResetAt(recoveryPosition);
@@ -200,6 +210,7 @@ public partial class HazardResolver : Node
         _recoveryPromptActive = true;
         _shotController.SetInputEnabled(false);
         _hud.SetStatusMessage("Obstructed lie in trees. Choose recovery.");
+        AudioManagerSingleton?.PlaySfx("recovery_prompt");
         GameManagerSingleton?.ChangeState(GameState.RecoveryPrompt);
         TreeRecoveryPromptRequested?.Invoke();
     }

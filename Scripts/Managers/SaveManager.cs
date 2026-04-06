@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
 
@@ -6,6 +7,7 @@ public partial class SaveManager : Node
 {
     private const string RunSavePath = "user://run_save.json";
     private const string HighScorePath = "user://high_score.json";
+    private const string BestRunPath = "user://best_run.json";
     private const string SettingsPath = "user://settings.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -20,7 +22,25 @@ public partial class SaveManager : Node
 
     public RunSaveData? LoadRun()
     {
-        return ReadJson<RunSaveData>(RunSavePath);
+        return TryLoadRun(out var data) ? data : null;
+    }
+
+    public bool TryLoadRun(out RunSaveData? runSaveData)
+    {
+        runSaveData = ReadJson<RunSaveData>(RunSavePath);
+        if (runSaveData == null)
+        {
+            return false;
+        }
+
+        if (!ValidateRunSaveData(runSaveData))
+        {
+            GD.PushWarning("[SaveManager] Run save exists but failed validation. Treating as corrupt.");
+            runSaveData = null;
+            return false;
+        }
+
+        return true;
     }
 
     public void SaveHighScore(int score)
@@ -37,6 +57,21 @@ public partial class SaveManager : Node
     {
         var score = ReadJson<int?>(HighScorePath);
         return score ?? 0;
+    }
+
+    public void SaveBestRun(BestRunData bestRunData)
+    {
+        WriteJson(BestRunPath, bestRunData);
+    }
+
+    public bool HasBestRunSave()
+    {
+        return FileAccess.FileExists(BestRunPath);
+    }
+
+    public BestRunData? LoadBestRun()
+    {
+        return ReadJson<BestRunData>(BestRunPath);
     }
 
     public void SaveSettings(SettingsData settings)
@@ -118,5 +153,35 @@ public partial class SaveManager : Node
             GD.PushWarning($"[SaveManager] ReadJson failed for {path}: {ex.Message}");
             return default;
         }
+    }
+
+    private static bool ValidateRunSaveData(RunSaveData data)
+    {
+        if (data.TotalHoles <= 0)
+        {
+            return false;
+        }
+
+        if (data.CurrentHoleIndex <= 0 || data.CurrentHoleIndex > data.TotalHoles)
+        {
+            return false;
+        }
+
+        if (data.Currency < 0)
+        {
+            return false;
+        }
+
+        data.HoleResults ??= new List<HoleResultData>();
+        if (data.HoleResults.Count > data.TotalHoles)
+        {
+            return false;
+        }
+
+        data.CurrentLoadout ??= PlayerLoadout.CreateDefault();
+        data.CurrentLoadout.UnlockedBallIds ??= new List<string>();
+        data.CurrentLoadout.PurchasedUpgradeIds ??= new List<string>();
+
+        return true;
     }
 }

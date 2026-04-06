@@ -7,6 +7,7 @@ public partial class SettingsController : Control
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -19,6 +20,7 @@ public partial class SettingsController : Control
         }
 
         var settings = SaveManagerSingleton?.LoadSettings() ?? new SettingsData();
+        SaveManagerSingleton?.SaveSettings(settings);
         if (_statusLabel != null)
         {
             _statusLabel.Text =
@@ -26,10 +28,13 @@ public partial class SettingsController : Control
                 $"Master Volume: {settings.MasterVolume:0.00}\n" +
                 $"Fullscreen: {settings.Fullscreen}";
         }
+
+        AudioManagerSingleton?.PlayMusic("menu");
     }
 
     private void OnBackPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.GoToMainMenu();
     }
 }

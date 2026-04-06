@@ -15,6 +15,7 @@ public partial class ShotController : Node2D
     private HUDController? _hud;
     private ClubController? _clubController;
     private LieEvaluator? _lieEvaluator;
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     private bool _inputEnabled = true;
     private bool _isCharging;
@@ -205,6 +206,7 @@ public partial class ShotController : Node2D
         _hud!.SetStrokeCount(_hole.LocalStrokeCount);
 
         _ball!.Launch(GetAimDirection(), shotPower, club.FrictionMultiplier);
+        AudioManagerSingleton?.PlaySfx("shot");
     }
 
     private Vector2 GetAimDirection()

@@ -11,6 +11,7 @@ public partial class ScorecardController : Control
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -37,6 +38,7 @@ public partial class ScorecardController : Control
         }
 
         GameManagerSingleton?.ChangeState(GameState.Scorecard);
+        AudioManagerSingleton?.PlayMusic("menu");
         RefreshSummary();
     }
 
@@ -112,16 +114,19 @@ public partial class ScorecardController : Control
 
     private void OnMainMenuPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.GoToMainMenu();
     }
 
     private void OnNextHolePressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.ContinueRunToNextHole();
     }
 
     private void OnShopPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.GoToShop();
     }
 }

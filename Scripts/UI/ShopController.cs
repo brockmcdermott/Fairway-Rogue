@@ -18,6 +18,7 @@ public partial class ShopController : Control
 
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -57,6 +58,7 @@ public partial class ShopController : Control
         }
 
         GameManagerSingleton?.ChangeState(GameState.Shop);
+        AudioManagerSingleton?.PlayMusic("menu");
         RefreshAll();
     }
 
@@ -140,11 +142,13 @@ public partial class ShopController : Control
 
     private void OnContinuePressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.ContinueRunToNextHole();
     }
 
     private void OnMainMenuPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.GoToMainMenu();
     }
 
@@ -174,11 +178,13 @@ public partial class ShopController : Control
         if (run.TryPurchaseUpgrade(upgrade.Id, out var message))
         {
             GameManagerSingleton?.SaveCurrentRunIfAvailable();
+            AudioManagerSingleton?.PlaySfx("shop_purchase");
             SetStatus(message);
             RefreshAll();
             return;
         }
 
+        AudioManagerSingleton?.PlaySfx("ui_click");
         SetStatus(message);
         RefreshSelectedUpgradeDetails();
     }
@@ -211,6 +217,7 @@ public partial class ShopController : Control
         if (run.SetActiveBall(selectedBall.Id, out var message))
         {
             GameManagerSingleton?.SaveCurrentRunIfAvailable();
+            AudioManagerSingleton?.PlaySfx("ui_click");
             SetStatus(message);
             RefreshUnlockedBallOptions();
             RefreshSelectedUpgradeDetails();

@@ -13,6 +13,7 @@ public partial class RunManager : Node
     public int TotalPar { get; private set; }
     public int Seed { get; private set; }
     public PlayerLoadout CurrentLoadout { get; private set; } = PlayerLoadout.CreateDefault();
+    public bool HasActiveRun { get; private set; }
     public int HolesCompleted => HoleResults.Count;
 
     public void StartRun(int seed, int totalHoles = DefaultTotalHoles)
@@ -25,6 +26,7 @@ public partial class RunManager : Node
         TotalPar = 0;
         HoleResults = new List<HoleResultData>();
         CurrentLoadout = PlayerLoadout.CreateDefault();
+        HasActiveRun = true;
     }
 
     public void AddStroke()
@@ -262,6 +264,7 @@ public partial class RunManager : Node
         HoleResults.Sort((left, right) => left.HoleNumber.CompareTo(right.HoleNumber));
         CurrentLoadout = data.CurrentLoadout?.Clone() ?? PlayerLoadout.CreateDefault();
         EnsureLoadoutIsValid();
+        HasActiveRun = true;
 
         RecalculateTotals();
         CurrentHoleIndex = Mathf.Clamp(CurrentHoleIndex, 1, TotalHoles);

@@ -10,6 +10,7 @@ public partial class RunCompleteController : Control
     private GameManager? GameManagerSingleton => GetNodeOrNull<GameManager>("/root/GameManager");
     private RunManager? RunManagerSingleton => GetNodeOrNull<RunManager>("/root/RunManager");
     private SaveManager? SaveManagerSingleton => GetNodeOrNull<SaveManager>("/root/SaveManager");
+    private AudioManager? AudioManagerSingleton => GetNodeOrNull<AudioManager>("/root/AudioManager");
 
     public override void _Ready()
     {
@@ -29,6 +30,7 @@ public partial class RunCompleteController : Control
         }
 
         GameManagerSingleton?.ChangeState(GameState.RunComplete);
+        AudioManagerSingleton?.PlayMusic("menu");
         SaveManagerSingleton?.DeleteRunSave();
         RefreshSummary();
     }
@@ -51,13 +53,33 @@ public partial class RunCompleteController : Control
         var relativeText = HoleResultData.FormatRelativeScore(relative);
         var label = HoleResultData.GetScoreLabel(relative);
 
-        var hasHighScore = SaveManagerSingleton?.HasHighScoreSave() ?? false;
-        var bestScore = hasHighScore ? (SaveManagerSingleton?.LoadHighScore() ?? relative) : relative;
+        var saveManager = SaveManagerSingleton;
+        var hasHighScore = saveManager?.HasHighScoreSave() ?? false;
+        var bestScore = hasHighScore ? (saveManager?.LoadHighScore() ?? relative) : relative;
+
+        var previousBestRun = saveManager?.LoadBestRun();
+        var currentBestRunData = new BestRunData
+        {
+            ScoreRelativeToPar = relative,
+            TotalStrokes = run.TotalStrokes,
+            TotalPar = run.TotalPar,
+            HolesCompleted = run.HolesCompleted,
+            TotalHoles = run.TotalHoles,
+            CurrencyEarned = run.Currency,
+            CompletedAtUnixSeconds = (long)Time.GetUnixTimeFromSystem()
+        };
+
         var isNewBest = !hasHighScore || relative < bestScore;
+        var isNewBestRun = previousBestRun == null || IsBetterRun(currentBestRunData, previousBestRun);
         if (isNewBest)
         {
             bestScore = relative;
-            SaveManagerSingleton?.SaveHighScore(bestScore);
+            saveManager?.SaveHighScore(bestScore);
+        }
+
+        if (isNewBestRun)
+        {
+            saveManager?.SaveBestRun(currentBestRunData);
         }
 
         _summaryLabel.Text =
@@ -65,9 +87,11 @@ public partial class RunCompleteController : Control
             $"Holes: {run.HolesCompleted}/{run.TotalHoles}\n" +
             $"Total Strokes: {run.TotalStrokes}\n" +
             $"Total Par: {run.TotalPar}\n" +
+            $"Currency Earned: {run.Currency}\n" +
             $"Final Score: {relativeText} ({label})\n" +
             $"Best Score: {HoleResultData.FormatRelativeScore(bestScore)}" +
-            (isNewBest ? " (New Best)" : string.Empty);
+            (isNewBest ? " (New Best)" : string.Empty) +
+            (isNewBestRun ? "\nBest Run Record Updated" : string.Empty);
 
         if (_historyLabel != null)
         {
@@ -91,11 +115,28 @@ public partial class RunCompleteController : Control
 
     private void OnNewRunPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.StartNewRun();
     }
 
     private void OnMainMenuPressed()
     {
+        AudioManagerSingleton?.PlaySfx("ui_click");
         GameManagerSingleton?.GoToMainMenu();
+    }
+
+    private static bool IsBetterRun(BestRunData current, BestRunData previous)
+    {
+        if (current.ScoreRelativeToPar != previous.ScoreRelativeToPar)
+        {
+            return current.ScoreRelativeToPar < previous.ScoreRelativeToPar;
+        }
+
+        if (current.TotalStrokes != previous.TotalStrokes)
+        {
+            return current.TotalStrokes < previous.TotalStrokes;
+        }
+
+        return current.CurrencyEarned > previous.CurrencyEarned;
     }
 }

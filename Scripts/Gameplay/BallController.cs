@@ -11,6 +11,7 @@ public partial class BallController : Area2D
     [Export] public float StopSettleTime { get; set; } = 0.08f;
     [Export] public float BoundaryBounceDamping { get; set; } = 0.35f;
     [Export] public bool EnableBoundsBounce { get; set; }
+    [Export] public bool DrawDebugBall { get; set; }
 
     [ExportGroup("Playable Bounds")]
     [Export] public Rect2 PlayableBounds { get; set; } = new Rect2(new Vector2(100, 100), new Vector2(1080, 520));
@@ -18,6 +19,7 @@ public partial class BallController : Area2D
     public Vector2 Velocity { get; private set; } = Vector2.Zero;
     public bool IsMoving { get; private set; }
     public bool MovementEnabled { get; private set; } = true;
+    public float SpeedRatio => MaxLaunchSpeed <= 0.0f ? 0.0f : Mathf.Clamp(Velocity.Length() / MaxLaunchSpeed, 0.0f, 1.0f);
     public TerrainType CurrentTerrainType { get; private set; } = TerrainType.Tee;
     public TerrainProperties CurrentTerrainProperties { get; private set; } = TerrainDatabase.GetProperties(TerrainType.Tee);
 
@@ -166,6 +168,11 @@ public partial class BallController : Area2D
 
     public override void _Draw()
     {
+        if (!DrawDebugBall)
+        {
+            return;
+        }
+
         DrawCircle(Vector2.Zero, Radius, new Color("f8f9fa"));
         DrawArc(Vector2.Zero, Radius, 0, Mathf.Tau, 24, new Color("222222"), 2.0f);
     }
