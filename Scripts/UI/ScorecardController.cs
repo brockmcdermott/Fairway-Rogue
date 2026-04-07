@@ -15,6 +15,8 @@ public partial class ScorecardController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyMenuStyle(this);
+
         _holeSummaryLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HoleSummaryLabel");
         _totalsLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/TotalsLabel");
         _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryScroll/HistoryLabel");

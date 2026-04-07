@@ -53,6 +53,11 @@ public partial class GameManager : Node
 
     public void StartNewRun()
     {
+        StartNewRunWithHoleCount(RunManager.DefaultTotalHoles);
+    }
+
+    public void StartNewRunWithHoleCount(int totalHoles)
+    {
         var runManager = RunManagerSingleton;
         var sceneRouter = SceneRouterSingleton;
 
@@ -63,7 +68,7 @@ public partial class GameManager : Node
         }
 
         var seed = (int)Time.GetUnixTimeFromSystem();
-        runManager.StartRun(seed, RunManager.DefaultTotalHoles);
+        runManager.StartRun(seed, Mathf.Max(1, totalHoles));
         SaveManagerSingleton?.SaveRun(runManager.BuildSaveData());
 
         ChangeState(GameState.LoadingHole);

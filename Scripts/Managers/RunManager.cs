@@ -4,6 +4,7 @@ using Godot;
 public partial class RunManager : Node
 {
     public const int DefaultTotalHoles = 9;
+    public static readonly int[] SupportedRunLengths = { 3, 9, 18 };
 
     public int CurrentHoleIndex { get; private set; } = 1;
     public int TotalHoles { get; private set; } = DefaultTotalHoles;
@@ -13,19 +14,22 @@ public partial class RunManager : Node
     public int TotalPar { get; private set; }
     public int Seed { get; private set; }
     public PlayerLoadout CurrentLoadout { get; private set; } = PlayerLoadout.CreateDefault();
+    public CourseLayout? CurrentCourseLayout { get; private set; }
     public bool HasActiveRun { get; private set; }
+    public bool HasCourseLayout => CurrentCourseLayout != null && CurrentCourseLayout.Holes.Count == TotalHoles;
     public int HolesCompleted => HoleResults.Count;
 
     public void StartRun(int seed, int totalHoles = DefaultTotalHoles)
     {
         Seed = seed;
         CurrentHoleIndex = 1;
-        TotalHoles = Mathf.Max(1, totalHoles);
+        TotalHoles = NormalizeRunLength(totalHoles);
         Currency = 0;
         TotalStrokes = 0;
         TotalPar = 0;
         HoleResults = new List<HoleResultData>();
         CurrentLoadout = PlayerLoadout.CreateDefault();
+        CurrentCourseLayout = null;
         HasActiveRun = true;
     }
 
@@ -105,6 +109,36 @@ public partial class RunManager : Node
     public int GetScoreRelativeToPar()
     {
         return TotalStrokes - TotalPar;
+    }
+
+    public void SetCourseLayout(CourseLayout layout)
+    {
+        if (layout == null)
+        {
+            return;
+        }
+
+        CurrentCourseLayout = layout;
+        if (TotalHoles != layout.TotalHoles)
+        {
+            TotalHoles = Mathf.Max(1, layout.TotalHoles);
+            CurrentHoleIndex = Mathf.Clamp(CurrentHoleIndex, 1, TotalHoles);
+        }
+    }
+
+    public void ClearCourseLayout()
+    {
+        CurrentCourseLayout = null;
+    }
+
+    public HoleLayout? GetHoleLayout(int holeNumber)
+    {
+        return CurrentCourseLayout?.GetHoleByNumber(holeNumber);
+    }
+
+    public HoleLayout? GetCurrentHoleLayout()
+    {
+        return GetHoleLayout(CurrentHoleIndex);
     }
 
     public BallData GetActiveBallData()
@@ -258,12 +292,13 @@ public partial class RunManager : Node
     {
         Seed = data.Seed;
         CurrentHoleIndex = data.CurrentHoleIndex > 0 ? data.CurrentHoleIndex : 1;
-        TotalHoles = data.TotalHoles > 0 ? data.TotalHoles : DefaultTotalHoles;
+        TotalHoles = NormalizeRunLength(data.TotalHoles);
         Currency = Mathf.Max(data.Currency, 0);
         HoleResults = data.HoleResults ?? new List<HoleResultData>();
         HoleResults.Sort((left, right) => left.HoleNumber.CompareTo(right.HoleNumber));
         CurrentLoadout = data.CurrentLoadout?.Clone() ?? PlayerLoadout.CreateDefault();
         EnsureLoadoutIsValid();
+        CurrentCourseLayout = null;
         HasActiveRun = true;
 
         RecalculateTotals();
@@ -353,5 +388,27 @@ public partial class RunManager : Node
         club.MaxPower *= ball.DistanceMultiplier;
         club.FrictionMultiplier *= ball.ControlFrictionMultiplier;
         return club;
+    }
+
+    private static int NormalizeRunLength(int totalHoles)
+    {
+        var clamped = Mathf.Max(1, totalHoles);
+        var nearest = SupportedRunLengths[0];
+        var nearestDistance = Mathf.Abs(clamped - nearest);
+
+        for (var i = 1; i < SupportedRunLengths.Length; i += 1)
+        {
+            var candidate = SupportedRunLengths[i];
+            var distance = Mathf.Abs(clamped - candidate);
+            if (distance >= nearestDistance)
+            {
+                continue;
+            }
+
+            nearest = candidate;
+            nearestDistance = distance;
+        }
+
+        return nearest;
     }
 }

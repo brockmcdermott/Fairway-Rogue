@@ -24,10 +24,14 @@ public partial class BallController : Area2D
     [Export] public bool VerboseDebugLogging { get; set; }
 
     [ExportGroup("Pseudo-3D Carry")]
-    [Export] public float AirborneMinSeconds { get; set; } = 0.04f;
-    [Export] public float AirborneMaxSeconds { get; set; } = 0.62f;
-    [Export] public float AirborneDragPerSecond { get; set; } = 72.0f;
-    [Export] public float AirborneMaxVisualHeight { get; set; } = 46.0f;
+    [Export] public float AirborneMinSeconds { get; set; } = 0.05f;
+    [Export] public float AirborneMaxSeconds { get; set; } = 2.20f;
+    [Export] public float AirborneDragPerSecond { get; set; } = 28.0f;
+    [Export] public float AirborneMaxVisualHeight { get; set; } = 58.0f;
+    [Export] public float CarryMinimumBlend { get; set; } = 0.10f;
+    [Export] public float CarryLoftExponent { get; set; } = 0.82f;
+    [Export] public float CarryPowerExponent { get; set; } = 0.86f;
+    [Export] public float ArcPowerHeightScale { get; set; } = 1.35f;
     [Export] public bool IgnoreTerrainWhileAirborne { get; set; } = true;
 
     public Vector2 Velocity { get; private set; } = Vector2.Zero;
@@ -277,9 +281,19 @@ public partial class BallController : Area2D
 
     public float EstimateCarrySeconds(float loftFactor, float normalizedPower)
     {
-        var loft = Mathf.Clamp(loftFactor, 0.0f, 1.0f);
-        var power = Mathf.Clamp(normalizedPower, 0.0f, 1.0f);
-        var carryBlend = loft * Mathf.Lerp(0.28f, 1.0f, power);
+        var loft = Mathf.Pow(
+            Mathf.Clamp(loftFactor, 0.0f, 1.0f),
+            Mathf.Max(0.10f, CarryLoftExponent));
+        var power = Mathf.Pow(
+            Mathf.Clamp(normalizedPower, 0.0f, 1.0f),
+            Mathf.Max(0.10f, CarryPowerExponent));
+        var carryBlend = loft * power;
+        carryBlend = Mathf.Clamp(carryBlend, 0.0f, 1.0f);
+        if (carryBlend > 0.001f)
+        {
+            carryBlend = Mathf.Lerp(Mathf.Clamp(CarryMinimumBlend, 0.0f, 0.95f), 1.0f, carryBlend);
+        }
+
         return Mathf.Lerp(0.0f, Mathf.Max(AirborneMinSeconds, AirborneMaxSeconds), carryBlend);
     }
 
@@ -339,7 +353,7 @@ public partial class BallController : Area2D
             ? 1.0f
             : Mathf.Clamp(_airborneElapsed / _airborneDuration, 0.0f, 1.0f);
         var arc = 4.0f * progress * (1.0f - progress);
-        var launchScale = Mathf.Lerp(0.45f, 1.0f, _launchSpeedRatio);
+        var launchScale = Mathf.Lerp(0.35f, ArcPowerHeightScale, Mathf.Pow(_launchSpeedRatio, 0.86f));
         VisualHeight = Mathf.Max(0.0f, AirborneMaxVisualHeight * _shotLoftFactor * launchScale * arc);
 
         if (progress < 1.0f)

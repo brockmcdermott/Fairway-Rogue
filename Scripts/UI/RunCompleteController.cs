@@ -14,6 +14,8 @@ public partial class RunCompleteController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyMenuStyle(this);
+
         _summaryLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel");
         _historyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HistoryScroll/HistoryLabel");
         _newRunButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ButtonRow/NewRunButton");
@@ -52,12 +54,13 @@ public partial class RunCompleteController : Control
         var relative = run.GetScoreRelativeToPar();
         var relativeText = HoleResultData.FormatRelativeScore(relative);
         var label = HoleResultData.GetScoreLabel(relative);
+        var runLength = Mathf.Clamp(run.TotalHoles, 1, 36);
 
         var saveManager = SaveManagerSingleton;
-        var hasHighScore = saveManager?.HasHighScoreSave() ?? false;
-        var bestScore = hasHighScore ? (saveManager?.LoadHighScore() ?? relative) : relative;
+        var hasHighScore = saveManager?.HasHighScoreSave(runLength) ?? false;
+        var bestScore = hasHighScore ? (saveManager?.LoadHighScore(runLength) ?? relative) : relative;
 
-        var previousBestRun = saveManager?.LoadBestRun();
+        var previousBestRun = saveManager?.LoadBestRun(runLength);
         var currentBestRunData = new BestRunData
         {
             ScoreRelativeToPar = relative,
@@ -74,12 +77,12 @@ public partial class RunCompleteController : Control
         if (isNewBest)
         {
             bestScore = relative;
-            saveManager?.SaveHighScore(bestScore);
+            saveManager?.SaveHighScore(bestScore, runLength);
         }
 
         if (isNewBestRun)
         {
-            saveManager?.SaveBestRun(currentBestRunData);
+            saveManager?.SaveBestRun(currentBestRunData, runLength);
         }
 
         _summaryLabel.Text =
@@ -89,7 +92,7 @@ public partial class RunCompleteController : Control
             $"Total Par: {run.TotalPar}\n" +
             $"Currency Earned: {run.Currency}\n" +
             $"Final Score: {relativeText} ({label})\n" +
-            $"Best Score: {HoleResultData.FormatRelativeScore(bestScore)}" +
+            $"Best Score ({runLength}h): {HoleResultData.FormatRelativeScore(bestScore)}" +
             (isNewBest ? " (New Best)" : string.Empty) +
             (isNewBestRun ? "\nBest Run Record Updated" : string.Empty);
 

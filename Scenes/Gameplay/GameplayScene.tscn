@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://Scripts/Gameplay/GameplaySceneController.cs" id="1"]
 [ext_resource type="PackedScene" path="res://Scenes/Gameplay/HUD.tscn" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://Scripts/Gameplay/HazardResolver.cs" id="9"]
 [ext_resource type="Script" path="res://Scripts/Generation/HoleGenerator.cs" id="10"]
 [ext_resource type="Script" path="res://Scripts/Generation/TerrainPainter.cs" id="11"]
+[ext_resource type="Script" path="res://Scripts/Generation/CourseGenerator.cs" id="12"]
 
 [node name="GameplayScene" type="Node2D"]
 script = ExtResource("1")
@@ -30,6 +31,7 @@ script = ExtResource("6")
 
 [node name="ShotController" type="Node2D" parent="."]
 script = ExtResource("7")
+z_index = 170
 
 [node name="LieEvaluator" type="Node" parent="."]
 script = ExtResource("8")
@@ -39,6 +41,9 @@ script = ExtResource("9")
 
 [node name="HoleGenerator" type="Node" parent="."]
 script = ExtResource("10")
+
+[node name="CourseGenerator" type="Node" parent="."]
+script = ExtResource("12")
 
 [node name="TerrainPainter" type="Node" parent="."]
 script = ExtResource("11")

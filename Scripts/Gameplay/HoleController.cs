@@ -155,6 +155,19 @@ public partial class HoleController : Node2D
         _cupRejectCooldownRemaining = 0.0f;
     }
 
+    public void SetCupEnabled(bool enabled)
+    {
+        if (_cupArea == null)
+        {
+            return;
+        }
+
+        _cupArea.Monitoring = enabled;
+        _cupArea.Monitorable = enabled;
+        _cupArea.CollisionLayer = enabled ? 1u : 0u;
+        _cupArea.CollisionMask = enabled ? 1u : 0u;
+    }
+
     private void OnCupAreaEntered(Area2D area)
     {
         if (IsHoleComplete)

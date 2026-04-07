@@ -3,6 +3,8 @@ using Godot;
 
 public class FairwayPathBuilder
 {
+    public int CurveSubdivisions { get; set; } = 6;
+
     public List<Vector2> BuildCenterLine(
         Vector2 teePosition,
         Vector2 cupPosition,
@@ -41,7 +43,7 @@ public class FairwayPathBuilder
         }
 
         points.Add(cupPosition);
-        return points;
+        return SmoothPath(points, safeBounds, CurveSubdivisions);
     }
 
     public Vector2[] BuildCorridorPolygon(List<Vector2> centerLine, float startWidth, float endWidth)
@@ -97,5 +99,48 @@ public class FairwayPathBuilder
         return new Vector2(
             Mathf.Clamp(point.X, bounds.Position.X, bounds.End.X),
             Mathf.Clamp(point.Y, bounds.Position.Y, bounds.End.Y));
+    }
+
+    private static List<Vector2> SmoothPath(IReadOnlyList<Vector2> points, Rect2 bounds, int subdivisions)
+    {
+        if (points.Count <= 2 || subdivisions <= 1)
+        {
+            return new List<Vector2>(points);
+        }
+
+        var safeBounds = bounds.Grow(-6.0f);
+        var smoothed = new List<Vector2>(points.Count * subdivisions)
+        {
+            points[0]
+        };
+
+        for (var segment = 0; segment < points.Count - 1; segment += 1)
+        {
+            var p0 = points[Mathf.Max(0, segment - 1)];
+            var p1 = points[segment];
+            var p2 = points[segment + 1];
+            var p3 = points[Mathf.Min(points.Count - 1, segment + 2)];
+
+            for (var step = 1; step <= subdivisions; step += 1)
+            {
+                var t = step / (float)subdivisions;
+                var interpolated = CatmullRom(p0, p1, p2, p3, t);
+                smoothed.Add(ClampToRect(interpolated, safeBounds));
+            }
+        }
+
+        smoothed[smoothed.Count - 1] = points[points.Count - 1];
+        return smoothed;
+    }
+
+    private static Vector2 CatmullRom(Vector2 p0, Vector2 p1, Vector2 p2, Vector2 p3, float t)
+    {
+        var t2 = t * t;
+        var t3 = t2 * t;
+        return 0.5f * (
+            2.0f * p1 +
+            (-p0 + p2) * t +
+            (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t2 +
+            (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t3);
     }
 }

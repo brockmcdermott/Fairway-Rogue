@@ -1,11 +1,25 @@
+using System.Collections.Generic;
 using Godot;
 
 public partial class GameplaySceneController : Node2D
 {
     [ExportGroup("Camera Framing")]
-    [Export] public float CameraPaddingPixels { get; set; } = 120.0f;
-    [Export] public float CameraMinZoom { get; set; } = 0.55f;
-    [Export] public float CameraMaxZoom { get; set; } = 2.20f;
+    [Export] public float CameraPaddingPixels { get; set; } = 14.0f;
+    [Export] public float CameraMinZoom { get; set; } = 0.42f;
+    [Export] public float CameraMaxZoom { get; set; } = 3.10f;
+    [Export] public float CourseFillFactor { get; set; } = 0.52f;
+
+    [ExportGroup("Camera Interaction")]
+    [Export] public bool FollowBallEnabled { get; set; } = true;
+    [Export] public float CameraFollowLerpSpeed { get; set; } = 10.0f;
+    [Export] public float CameraDragSensitivity { get; set; } = 1.0f;
+    [Export] public float CameraZoomStep { get; set; } = 0.10f;
+    [Export] public float CameraUserZoomMin { get; set; } = 0.55f;
+    [Export] public float CameraUserZoomMax { get; set; } = 2.8f;
+    [Export] public MouseButton CameraPanButton { get; set; } = MouseButton.Right;
+
+    [ExportGroup("Course Map")]
+    [Export] public float InactiveHoleAlpha { get; set; } = 0.82f;
 
     [ExportGroup("Debug Hooks")]
     [Export] public bool UseProceduralGeneration { get; set; } = true;
@@ -14,6 +28,7 @@ public partial class GameplaySceneController : Node2D
 
     private Camera2D? _camera;
     private Viewport? _viewport;
+    private Node2D? _holeRoot;
     private HUDController? _hud;
     private HoleController? _holeController;
     private BallController? _ballController;
@@ -22,9 +37,20 @@ public partial class GameplaySceneController : Node2D
     private LieEvaluator? _lieEvaluator;
     private HazardResolver? _hazardResolver;
     private HoleGenerator? _holeGenerator;
+    private CourseGenerator? _courseGenerator;
     private TerrainPainter? _terrainPainter;
     private RecoveryDialogController? _recoveryDialog;
+    private CourseLayout? _courseLayout;
     private HoleLayout? _activeLayout;
+    private PackedScene? _holeTemplateScene;
+    private readonly List<HoleController> _courseHoles = new List<HoleController>();
+    private Rect2 _cameraPanBounds = new Rect2(Vector2.Zero, new Vector2(1280, 720));
+    private Rect2 _activeHoleBounds = new Rect2(Vector2.Zero, new Vector2(1280, 720));
+    private float _cameraBaseZoom = 1.0f;
+    private float _cameraUserZoom = 1.0f;
+    private Vector2 _cameraPanOffset = Vector2.Zero;
+    private bool _isCameraDragging;
+    private Vector2 _lastDragMousePosition = Vector2.Zero;
 
     private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
     private RunManager? RunManagerSingleton => AutoloadLocator.Get<RunManager>(this, nameof(RunManager));
@@ -41,16 +67,23 @@ public partial class GameplaySceneController : Node2D
             _viewport.SizeChanged += OnViewportSizeChanged;
         }
 
+        _holeRoot = GetNodeOrNull<Node2D>("HoleRoot");
         _hud = GetNodeOrNull<HUDController>("UIRoot/HUD");
-        _holeController = GetNodeOrNull<HoleController>("HoleRoot/StaticPracticeHole");
         _ballController = GetNodeOrNull<BallController>("Ball");
         _clubController = GetNodeOrNull<ClubController>("ClubController");
         _shotController = GetNodeOrNull<ShotController>("ShotController");
         _lieEvaluator = GetNodeOrNull<LieEvaluator>("LieEvaluator");
         _hazardResolver = GetNodeOrNull<HazardResolver>("HazardResolver");
         _holeGenerator = GetNodeOrNull<HoleGenerator>("HoleGenerator");
+        _courseGenerator = GetNodeOrNull<CourseGenerator>("CourseGenerator");
         _terrainPainter = GetNodeOrNull<TerrainPainter>("TerrainPainter");
         _recoveryDialog = GetNodeOrNull<RecoveryDialogController>("UIRoot/RecoveryDialog");
+        _holeTemplateScene = ResourceLoader.Load<PackedScene>("res://Scenes/Gameplay/StaticPracticeHole.tscn");
+
+        if (_ballController != null)
+        {
+            _ballController.BallStartedMoving += OnBallStartedMoving;
+        }
 
         if (_hud != null)
         {
@@ -61,13 +94,7 @@ public partial class GameplaySceneController : Node2D
 
         AudioManagerSingleton?.PlayMusic("gameplay");
 
-        GenerateAndApplyHoleLayout();
-
-        if (_holeController != null)
-        {
-            _holeController.HoleCompleted += OnHoleCompleted;
-            _holeController.CupRejectedBySpeed += OnCupRejectedBySpeed;
-        }
+        BuildOrLoadCourseMap();
 
         if (_recoveryDialog != null)
         {
@@ -79,7 +106,7 @@ public partial class GameplaySceneController : Node2D
         if (_holeController != null && _ballController != null)
         {
             _holeController.BindBall(_ballController);
-            _ballController.SetPlayableBounds(_holeController.GetCourseBounds());
+            _ballController.SetPlayableBounds(GetCurrentPlayableBounds());
             UpdateCameraFraming();
         }
 
@@ -88,7 +115,7 @@ public partial class GameplaySceneController : Node2D
             var terrainRoot = _holeController.GetNodeOrNull<Node>("Visuals");
             if (terrainRoot != null)
             {
-                _lieEvaluator.Configure(terrainRoot, _holeController.GetCourseBounds());
+                _lieEvaluator.Configure(terrainRoot, GetCurrentPlayableBounds());
             }
         }
 
@@ -112,7 +139,17 @@ public partial class GameplaySceneController : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (HandleCameraInput(@event))
+        {
+            return;
+        }
+
         if (!@event.IsActionPressed("ui_cancel"))
+        {
+            return;
+        }
+
+        if (_recoveryDialog != null && _recoveryDialog.Visible)
         {
             return;
         }
@@ -139,8 +176,11 @@ public partial class GameplaySceneController : Node2D
 
     public override void _Process(double delta)
     {
+        UpdateCameraTracking((float)delta);
+
         if (_hud == null || _holeController == null || _ballController == null || _holeController.IsHoleComplete)
         {
+            UpdateDebugOverlay();
             return;
         }
 
@@ -169,8 +209,9 @@ public partial class GameplaySceneController : Node2D
             clubName: _clubController.CurrentClub.Name,
             windText: BuildHudWindAndControlsText()
         );
+
         var activeBallName = RunManagerSingleton?.GetActiveBallData().Name ?? "All-Around Ball";
-        _hud.SetStatusMessage($"Ready for next shot. Ball: {activeBallName}.");
+        _hud.SetStatusMessage($"Ready. Ball: {activeBallName}. Scroll to zoom, {CameraPanButton} drag to pan, click to look.");
 
         if (_lieEvaluator != null && _ballController != null)
         {
@@ -182,36 +223,190 @@ public partial class GameplaySceneController : Node2D
         _hud.SetDebugInfo(string.Empty, EnableDebugOverlay);
     }
 
-    private void GenerateAndApplyHoleLayout()
+    private void BuildOrLoadCourseMap()
     {
-        if (_holeController == null || _holeGenerator == null)
+        DisconnectActiveHoleSignals();
+        _courseHoles.Clear();
+        _courseLayout = null;
+        _activeLayout = null;
+        _holeController = null;
+
+        var run = RunManagerSingleton;
+        var holeRoot = _holeRoot;
+        if (holeRoot == null)
         {
             return;
         }
 
-        var run = RunManagerSingleton;
-        var runSeed = DebugSeedOverride != 0 ? DebugSeedOverride : run?.Seed ?? (int)Time.GetUnixTimeFromSystem();
-        var holeIndex = run?.CurrentHoleIndex ?? _holeController.HoleNumber;
-        if (!UseProceduralGeneration)
+        if (!UseProceduralGeneration || _holeGenerator == null || _courseGenerator == null || run == null || !run.HasActiveRun)
         {
-            _activeLayout = null;
-            _holeController.HoleNumber = holeIndex;
-            _hud?.SetStatusMessage("Debug static practice hole enabled.");
+            _holeController = GetNodeOrNull<HoleController>("HoleRoot/StaticPracticeHole");
+            if (_holeController != null)
+            {
+                _courseHoles.Add(_holeController);
+                _holeController.SetCupEnabled(true);
+                ConnectActiveHoleSignals();
+            }
+
+            _hud?.SetStatusMessage("Static hole debug mode.");
             UpdateCameraFraming();
             return;
         }
 
-        var totalHoles = run?.TotalHoles ?? RunManager.DefaultTotalHoles;
-        _activeLayout = _holeGenerator.GenerateLayout(runSeed, holeIndex, totalHoles);
-        _holeController.ApplyGeneratedLayout(_activeLayout, _terrainPainter);
-        if (_activeLayout == null)
+        var runSeed = DebugSeedOverride != 0 ? DebugSeedOverride : run.Seed;
+        var totalHoles = Mathf.Max(1, run.TotalHoles);
+
+        if (!run.HasCourseLayout)
+        {
+            var generatedCourse = _courseGenerator.GenerateCourseLayout(runSeed, totalHoles, _holeGenerator);
+            run.SetCourseLayout(generatedCourse);
+        }
+
+        _courseLayout = run.CurrentCourseLayout;
+        if (_courseLayout == null || _courseLayout.Holes.Count == 0)
+        {
+            GD.PushError("[GameplaySceneController] Course layout generation failed.");
+            return;
+        }
+
+        BuildHoleNodes(_courseLayout);
+        ActivateHole(Mathf.Clamp(run.CurrentHoleIndex, 1, totalHoles));
+    }
+
+    private void BuildHoleNodes(CourseLayout courseLayout)
+    {
+        if (_holeRoot == null)
         {
             return;
         }
 
-        var direction = GetCompassDirection(_activeLayout.WindDirection);
-        _hud?.SetStatusMessage($"Generated hole {_activeLayout.HoleNumber} (Seed {_activeLayout.Seed}) | Wind {direction} {_activeLayout.WindStrength:0.00}");
+        ClearHoleRoot();
+
+        var template = _holeTemplateScene;
+        if (template == null)
+        {
+            GD.PushError("[GameplaySceneController] Missing hole template scene.");
+            return;
+        }
+
+        for (var i = 0; i < courseLayout.Holes.Count; i += 1)
+        {
+            var holeLayout = courseLayout.Holes[i];
+            var instance = template.Instantiate();
+            if (instance is not HoleController hole)
+            {
+                instance.QueueFree();
+                continue;
+            }
+
+            hole.Name = $"Hole_{holeLayout.HoleNumber}";
+            _holeRoot.AddChild(hole);
+            hole.ApplyGeneratedLayout(holeLayout, _terrainPainter);
+            hole.SetCupEnabled(false);
+            hole.Modulate = new Color(0.86f, 0.90f, 0.86f, Mathf.Clamp(InactiveHoleAlpha, 0.35f, 1.0f));
+            hole.ZIndex = 5;
+            _courseHoles.Add(hole);
+        }
+    }
+
+    private void ClearHoleRoot()
+    {
+        if (_holeRoot == null)
+        {
+            return;
+        }
+
+        var children = _holeRoot.GetChildren();
+        for (var i = children.Count - 1; i >= 0; i -= 1)
+        {
+            if (children[i] is Node child)
+            {
+                _holeRoot.RemoveChild(child);
+                child.QueueFree();
+            }
+        }
+    }
+
+    private void ActivateHole(int holeNumber)
+    {
+        DisconnectActiveHoleSignals();
+
+        HoleController? active = null;
+        for (var i = 0; i < _courseHoles.Count; i += 1)
+        {
+            if (_courseHoles[i].HoleNumber == holeNumber)
+            {
+                active = _courseHoles[i];
+                break;
+            }
+        }
+
+        if (active == null && _courseHoles.Count > 0)
+        {
+            active = _courseHoles[0];
+        }
+
+        _holeController = active;
+        if (_holeController == null)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _courseHoles.Count; i += 1)
+        {
+            var hole = _courseHoles[i];
+            var isActive = hole == _holeController;
+            hole.SetCupEnabled(isActive);
+            hole.ZIndex = isActive ? 20 : 5;
+            hole.Modulate = isActive
+                ? Colors.White
+                : new Color(0.86f, 0.90f, 0.86f, Mathf.Clamp(InactiveHoleAlpha, 0.35f, 1.0f));
+        }
+
+        _activeLayout = _holeController.ActiveLayout;
+        ConnectActiveHoleSignals();
+
+        if (_ballController != null)
+        {
+            _holeController.BindBall(_ballController);
+            _ballController.SetPlayableBounds(GetCurrentPlayableBounds());
+        }
+
+        if (_lieEvaluator != null)
+        {
+            var terrainRoot = _holeController.GetNodeOrNull<Node>("Visuals");
+            if (terrainRoot != null)
+            {
+                _lieEvaluator.Configure(terrainRoot, GetCurrentPlayableBounds());
+            }
+        }
+
         UpdateCameraFraming();
+        var direction = _activeLayout != null ? GetCompassDirection(_activeLayout.WindDirection) : "Calm";
+        var wind = _activeLayout != null ? _activeLayout.WindStrength : 0.0f;
+        _hud?.SetStatusMessage($"Hole {_holeController.HoleNumber} ready. Wind {direction} {wind:0.00}.");
+    }
+
+    private void ConnectActiveHoleSignals()
+    {
+        if (_holeController == null)
+        {
+            return;
+        }
+
+        _holeController.HoleCompleted += OnHoleCompleted;
+        _holeController.CupRejectedBySpeed += OnCupRejectedBySpeed;
+    }
+
+    private void DisconnectActiveHoleSignals()
+    {
+        if (_holeController == null)
+        {
+            return;
+        }
+
+        _holeController.HoleCompleted -= OnHoleCompleted;
+        _holeController.CupRejectedBySpeed -= OnCupRejectedBySpeed;
     }
 
     private void UpdateCameraFraming()
@@ -222,12 +417,15 @@ public partial class GameplaySceneController : Node2D
         }
 
         var bounds = _holeController.GetCourseBounds();
-        if (bounds.Size.X <= Mathf.Epsilon || bounds.Size.Y <= Mathf.Epsilon)
+        if (!IsValidRect(bounds))
         {
             return;
         }
 
-        _camera.GlobalPosition = bounds.GetCenter();
+        _activeHoleBounds = bounds;
+        _cameraPanBounds = _courseLayout != null && IsValidRect(_courseLayout.WorldBounds)
+            ? _courseLayout.WorldBounds
+            : bounds.Grow(280.0f);
 
         var viewportRect = GetViewportRect();
         if (viewportRect.Size.X <= 1.0f || viewportRect.Size.Y <= 1.0f)
@@ -241,8 +439,33 @@ public partial class GameplaySceneController : Node2D
 
         var zoomX = targetWidth / viewportRect.Size.X;
         var zoomY = targetHeight / viewportRect.Size.Y;
-        var targetZoom = Mathf.Clamp(Mathf.Max(zoomX, zoomY), Mathf.Min(CameraMinZoom, CameraMaxZoom), Mathf.Max(CameraMinZoom, CameraMaxZoom));
-        _camera.Zoom = new Vector2(targetZoom, targetZoom);
+        var fill = Mathf.Clamp(CourseFillFactor, 0.35f, 1.20f);
+        _cameraBaseZoom = Mathf.Clamp(
+            Mathf.Max(zoomX, zoomY) * fill,
+            Mathf.Min(CameraMinZoom, CameraMaxZoom),
+            Mathf.Max(CameraMinZoom, CameraMaxZoom));
+
+        _cameraUserZoom = Mathf.Clamp(_cameraUserZoom, CameraUserZoomMin, CameraUserZoomMax);
+        ClampCameraPanOffset();
+        ApplyCameraZoom();
+
+        var center = ClampCameraPosition(GetCameraFollowAnchor() + _cameraPanOffset);
+        _camera.GlobalPosition = center;
+    }
+
+    private Rect2 GetCurrentPlayableBounds()
+    {
+        if (_courseLayout != null && IsValidRect(_courseLayout.WorldBounds))
+        {
+            return _courseLayout.WorldBounds;
+        }
+
+        if (_holeController != null)
+        {
+            return _holeController.GetCourseBounds();
+        }
+
+        return new Rect2(new Vector2(-640.0f, -360.0f), new Vector2(1280.0f, 720.0f));
     }
 
     private void UpdateDebugOverlay()
@@ -264,9 +487,11 @@ public partial class GameplaySceneController : Node2D
         var hazardText = _hazardResolver?.LastHazardDebugText ?? "none";
         var safePos = _hazardResolver?.LastSafePosition ?? Vector2.Zero;
         var previousPos = _hazardResolver?.PreviousShotPosition ?? Vector2.Zero;
+        var courseHoles = _courseLayout?.TotalHoles ?? RunManagerSingleton?.TotalHoles ?? 1;
+        var activeHole = _holeController?.HoleNumber ?? 1;
 
         var text =
-            $"Debug | {movingText} | Speed {speed:0.00}\n" +
+            $"Debug | H{activeHole}/{courseHoles} | {movingText} | Speed {speed:0.00}\n" +
             $"Terrain: {terrainText}\n" +
             $"Last Safe: ({safePos.X:0.0}, {safePos.Y:0.0}) | Prev Shot: ({previousPos.X:0.0}, {previousPos.Y:0.0})\n" +
             $"Last Hazard: {hazardText}";
@@ -279,16 +504,185 @@ public partial class GameplaySceneController : Node2D
         UpdateCameraFraming();
     }
 
+    private void OnBallStartedMoving()
+    {
+        _cameraPanOffset = Vector2.Zero;
+        _isCameraDragging = false;
+    }
+
+    private void UpdateCameraTracking(float delta)
+    {
+        if (_camera == null)
+        {
+            return;
+        }
+
+        ApplyCameraZoom();
+        ClampCameraPanOffset();
+
+        var target = ClampCameraPosition(GetCameraFollowAnchor() + _cameraPanOffset);
+        if (delta <= 0.0f)
+        {
+            _camera.GlobalPosition = target;
+            return;
+        }
+
+        var lerpWeight = 1.0f - Mathf.Exp(-Mathf.Max(1.0f, CameraFollowLerpSpeed) * delta);
+        _camera.GlobalPosition = _camera.GlobalPosition.Lerp(target, lerpWeight);
+    }
+
+    private Vector2 GetCameraFollowAnchor()
+    {
+        if (FollowBallEnabled && _ballController != null && IsInstanceValid(_ballController))
+        {
+            return _ballController.GlobalPosition;
+        }
+
+        return IsValidRect(_activeHoleBounds) ? _activeHoleBounds.GetCenter() : Vector2.Zero;
+    }
+
+    private bool HandleCameraInput(InputEvent @event)
+    {
+        if (_camera == null || _hud == null || _recoveryDialog != null && _recoveryDialog.Visible)
+        {
+            return false;
+        }
+
+        if (@event is InputEventMouseButton mouseButton)
+        {
+            if (mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.WheelUp)
+            {
+                AdjustCameraZoom(1.0f - CameraZoomStep);
+                return true;
+            }
+
+            if (mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.WheelDown)
+            {
+                AdjustCameraZoom(1.0f + CameraZoomStep);
+                return true;
+            }
+
+            if (mouseButton.ButtonIndex == CameraPanButton)
+            {
+                _isCameraDragging = mouseButton.Pressed;
+                _lastDragMousePosition = mouseButton.Position;
+                return true;
+            }
+
+            if (mouseButton.Pressed && mouseButton.ButtonIndex == MouseButton.Left)
+            {
+                var worldPoint = GetGlobalMousePosition();
+                _cameraPanOffset = worldPoint - GetCameraFollowAnchor();
+                ClampCameraPanOffset();
+                return true;
+            }
+
+            return false;
+        }
+
+        if (@event is InputEventMouseMotion mouseMotion && _isCameraDragging)
+        {
+            var pixelDelta = mouseMotion.Position - _lastDragMousePosition;
+            _lastDragMousePosition = mouseMotion.Position;
+
+            var worldDelta = pixelDelta * Mathf.Max(0.05f, _camera.Zoom.X) * Mathf.Max(0.01f, CameraDragSensitivity);
+            _cameraPanOffset -= worldDelta;
+            ClampCameraPanOffset();
+            return true;
+        }
+
+        return false;
+    }
+
+    private void AdjustCameraZoom(float multiplier)
+    {
+        if (_camera == null)
+        {
+            return;
+        }
+
+        var safeMultiplier = Mathf.Clamp(multiplier, 0.2f, 5.0f);
+        _cameraUserZoom = Mathf.Clamp(
+            _cameraUserZoom * safeMultiplier,
+            Mathf.Min(CameraUserZoomMin, CameraUserZoomMax),
+            Mathf.Max(CameraUserZoomMin, CameraUserZoomMax));
+        ClampCameraPanOffset();
+        ApplyCameraZoom();
+    }
+
+    private void ApplyCameraZoom()
+    {
+        if (_camera == null)
+        {
+            return;
+        }
+
+        var absoluteZoom = Mathf.Clamp(
+            _cameraBaseZoom * _cameraUserZoom,
+            Mathf.Min(CameraMinZoom, CameraMaxZoom),
+            Mathf.Max(CameraMinZoom, CameraMaxZoom));
+        _camera.Zoom = new Vector2(absoluteZoom, absoluteZoom);
+    }
+
+    private void ClampCameraPanOffset()
+    {
+        var anchor = GetCameraFollowAnchor();
+        var clamped = ClampCameraPosition(anchor + _cameraPanOffset);
+        _cameraPanOffset = clamped - anchor;
+    }
+
+    private Vector2 ClampCameraPosition(Vector2 target)
+    {
+        if (_camera == null || !IsValidRect(_cameraPanBounds))
+        {
+            return target;
+        }
+
+        var viewportSize = GetViewportRect().Size;
+        if (viewportSize.X <= 1.0f || viewportSize.Y <= 1.0f)
+        {
+            return target;
+        }
+
+        var halfExtents = viewportSize * _camera.Zoom * 0.5f;
+        var min = _cameraPanBounds.Position + halfExtents;
+        var max = _cameraPanBounds.End - halfExtents;
+
+        if (min.X > max.X)
+        {
+            target.X = _cameraPanBounds.GetCenter().X;
+        }
+        else
+        {
+            target.X = Mathf.Clamp(target.X, min.X, max.X);
+        }
+
+        if (min.Y > max.Y)
+        {
+            target.Y = _cameraPanBounds.GetCenter().Y;
+        }
+        else
+        {
+            target.Y = Mathf.Clamp(target.Y, min.Y, max.Y);
+        }
+
+        return target;
+    }
+
+    private static bool IsValidRect(Rect2 rect)
+    {
+        return rect.Size.X > Mathf.Epsilon && rect.Size.Y > Mathf.Epsilon;
+    }
+
     private string BuildHudWindAndControlsText()
     {
-        const string controls = "Aim: Left/Right | Club: 1-4 or Up/Down | Hold Space: Power";
         if (_activeLayout == null)
         {
-            return controls;
+            return "Wind: Calm";
         }
 
         var direction = GetCompassDirection(_activeLayout.WindDirection);
-        return $"{controls} | Wind: {direction} {_activeLayout.WindStrength:0.00}";
+        return $"Wind: {direction} {_activeLayout.WindStrength:0.00}";
     }
 
     private static string GetCompassDirection(Vector2 vector)
@@ -363,10 +757,11 @@ public partial class GameplaySceneController : Node2D
 
     public override void _ExitTree()
     {
-        if (_holeController != null)
+        DisconnectActiveHoleSignals();
+
+        if (_ballController != null)
         {
-            _holeController.HoleCompleted -= OnHoleCompleted;
-            _holeController.CupRejectedBySpeed -= OnCupRejectedBySpeed;
+            _ballController.BallStartedMoving -= OnBallStartedMoving;
         }
 
         if (_recoveryDialog != null)
@@ -383,6 +778,7 @@ public partial class GameplaySceneController : Node2D
         if (_hud != null)
         {
             _hud.ClubSelectionRequested -= OnClubSelectionRequested;
+            _hud.MainMenuRequested -= OnMainMenuRequested;
         }
 
         if (_viewport != null)

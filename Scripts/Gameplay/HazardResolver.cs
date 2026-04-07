@@ -149,9 +149,12 @@ public partial class HazardResolver : Node
             return;
         }
 
-        if (_ball.CurrentTerrainType == TerrainType.Water || _ball.CurrentTerrainType == TerrainType.OutOfBounds)
+        var lieAtRest = _lieEvaluator.EvaluateTerrainAtPosition(_ball.GlobalPosition);
+        _ball.SetTerrain(lieAtRest);
+
+        if (lieAtRest == TerrainType.Water || lieAtRest == TerrainType.OutOfBounds)
         {
-            OnHazardEntered(_ball.CurrentTerrainType, _ball.GlobalPosition);
+            OnHazardEntered(lieAtRest, _ball.GlobalPosition);
             return;
         }
 
@@ -192,6 +195,12 @@ public partial class HazardResolver : Node
     {
         if (_isResolvingHazard || _recoveryPromptActive || _ball == null || _hole == null || _shotController == null || _hud == null || _lieEvaluator == null || _hole.IsHoleComplete)
         {
+            return;
+        }
+
+        if (_ball.IsAirborne)
+        {
+            LastHazardDebugText = $"{terrainType} ignored while airborne @ ({entryPosition.X:0.0}, {entryPosition.Y:0.0})";
             return;
         }
 

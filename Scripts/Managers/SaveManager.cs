@@ -6,8 +6,6 @@ using Godot;
 public partial class SaveManager : Node
 {
     private const string RunSavePath = "user://run_save.json";
-    private const string HighScorePath = "user://high_score.json";
-    private const string BestRunPath = "user://best_run.json";
     private const string SettingsPath = "user://settings.json";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -45,33 +43,63 @@ public partial class SaveManager : Node
 
     public void SaveHighScore(int score)
     {
-        WriteJson(HighScorePath, score);
+        SaveHighScore(score, RunManager.DefaultTotalHoles);
+    }
+
+    public void SaveHighScore(int score, int totalHoles)
+    {
+        WriteJson(GetHighScorePath(totalHoles), score);
     }
 
     public bool HasHighScoreSave()
     {
-        return FileAccess.FileExists(HighScorePath);
+        return HasHighScoreSave(RunManager.DefaultTotalHoles);
+    }
+
+    public bool HasHighScoreSave(int totalHoles)
+    {
+        return FileAccess.FileExists(GetHighScorePath(totalHoles));
     }
 
     public int LoadHighScore()
     {
-        var score = ReadJson<int?>(HighScorePath);
+        return LoadHighScore(RunManager.DefaultTotalHoles);
+    }
+
+    public int LoadHighScore(int totalHoles)
+    {
+        var score = ReadJson<int?>(GetHighScorePath(totalHoles));
         return score ?? 0;
     }
 
     public void SaveBestRun(BestRunData bestRunData)
     {
-        WriteJson(BestRunPath, bestRunData);
+        SaveBestRun(bestRunData, RunManager.DefaultTotalHoles);
+    }
+
+    public void SaveBestRun(BestRunData bestRunData, int totalHoles)
+    {
+        WriteJson(GetBestRunPath(totalHoles), bestRunData);
     }
 
     public bool HasBestRunSave()
     {
-        return FileAccess.FileExists(BestRunPath);
+        return HasBestRunSave(RunManager.DefaultTotalHoles);
+    }
+
+    public bool HasBestRunSave(int totalHoles)
+    {
+        return FileAccess.FileExists(GetBestRunPath(totalHoles));
     }
 
     public BestRunData? LoadBestRun()
     {
-        return ReadJson<BestRunData>(BestRunPath);
+        return LoadBestRun(RunManager.DefaultTotalHoles);
+    }
+
+    public BestRunData? LoadBestRun(int totalHoles)
+    {
+        return ReadJson<BestRunData>(GetBestRunPath(totalHoles));
     }
 
     public void SaveSettings(SettingsData settings)
@@ -122,6 +150,16 @@ public partial class SaveManager : Node
         {
             GD.PushError($"[SaveManager] WriteJson failed for {path}: {ex.Message}");
         }
+    }
+
+    private static string GetHighScorePath(int totalHoles)
+    {
+        return $"user://high_score_{Mathf.Clamp(totalHoles, 1, 36)}.json";
+    }
+
+    private static string GetBestRunPath(int totalHoles)
+    {
+        return $"user://best_run_{Mathf.Clamp(totalHoles, 1, 36)}.json";
     }
 
     private T? ReadJson<T>(string path)

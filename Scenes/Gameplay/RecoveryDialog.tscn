@@ -19,7 +19,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.45)
+color = Color(0, 0, 0, 0.6)
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 layout_mode = 1
@@ -30,7 +30,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(520, 0)
+custom_minimum_size = Vector2(560, 0)
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer"]
@@ -46,19 +46,19 @@ theme_override_constants/separation = 12
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Ball Is In The Trees"
+text = "Obstructed Lie"
 horizontal_alignment = 1
 
 [node name="BodyLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Choose a recovery option. Taking a drop adds 1 penalty stroke."
+text = "Ball is in the trees. Choose a recovery option. Taking a drop adds 1 penalty stroke."
 autowrap_mode = 3
 
 [node name="DropButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Take a Drop (+1)"
+text = "Take A Drop (+1)"
 
 [node name="PlayFromLieButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Play from Lie"
+text = "Play From Lie"

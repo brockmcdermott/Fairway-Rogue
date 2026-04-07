@@ -8,7 +8,7 @@ public partial class ShotController : Node2D
     [ExportGroup("Power Tuning")]
     [Export] public float MaxChargeSeconds { get; set; } = 1.2f;
     [Export] public float MinChargeRatio { get; set; } = 0.12f;
-    [Export] public float AimLineWidth { get; set; } = 3.0f;
+    [Export] public float AimLineWidth { get; set; } = 4.0f;
 
     [ExportGroup("Obstruction Penalties")]
     [Export] public float TreeObstructedPowerMultiplier { get; set; } = 0.78f;
@@ -135,8 +135,13 @@ public partial class ShotController : Node2D
 
         var chargeRatio = GetChargeRatio();
         var lineColor = new Color(0.95f, 0.95f - 0.35f * chargeRatio, 0.25f + 0.35f * chargeRatio);
-
+        var shadowColor = new Color(0.02f, 0.03f, 0.03f, 0.70f);
+        var screenOffset = new Vector2(1.6f, 1.6f);
+        DrawLine(origin + screenOffset, tip + screenOffset, shadowColor, AimLineWidth + 2.0f, true);
         DrawLine(origin, tip, lineColor, AimLineWidth, true);
+        DrawCircle(origin, 4.0f, new Color(1.0f, 0.95f, 0.76f, 0.92f));
+        DrawArc(origin, 4.0f, 0.0f, Mathf.Tau, 16, shadowColor, 1.6f, true);
+        DrawCircle(tip, 3.6f, new Color(1.0f, 0.82f, 0.34f, 0.96f));
 
         var normal = direction.Orthogonal();
         DrawLine(tip, tip - direction * 16.0f + normal * 8.0f, lineColor, AimLineWidth, true);
@@ -380,8 +385,8 @@ public partial class ShotController : Node2D
             0.0f,
             MaxFinalAccuracyPenaltyDegrees);
 
-        var cupSpeedText = _hole != null ? $"Cup <= {_hole.CupCaptureMaxSpeed:0}" : "Cup <= --";
-        var obstructionText = obstructed ? " | Obstructed lie" : string.Empty;
-        return $"Shot: Carry {carryLabel} ({carrySeconds:0.00}s) | Dispersion ±{accuracyPenalty:0.0} deg | {cupSpeedText}{obstructionText}";
+        var cupSpeedText = _hole != null ? $"Cup<={_hole.CupCaptureMaxSpeed:0}" : "Cup<=--";
+        var obstructionText = obstructed ? " | Obstructed" : string.Empty;
+        return $"Shot: {carryLabel} carry | Disp ±{accuracyPenalty:0.0} deg | {cupSpeedText}{obstructionText}";
     }
 }

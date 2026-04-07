@@ -11,6 +11,8 @@ public partial class SettingsController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyMenuStyle(this);
+
         _statusLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/StatusLabel");
         _backButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BackButton");
 

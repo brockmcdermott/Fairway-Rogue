@@ -22,6 +22,7 @@ public partial class HUDController : Control
     private Label? _windLabel;
     private Label? _statusLabel;
     private Label? _debugLabel;
+    private ProgressBar? _powerMeter;
     private Button? _returnToMenuButton;
     private Button? _recoveryTestButton;
     private Button? _driverButton;
@@ -32,23 +33,33 @@ public partial class HUDController : Control
 
     public override void _Ready()
     {
-        _holeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/HoleLabel");
-        _parLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ParLabel");
-        _strokeLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StrokeLabel");
-        _clubLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ClubLabel");
-        _powerLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/PowerLabel");
-        _shotProfileLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/ShotProfileLabel");
-        _lieLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/LieLabel");
-        _distanceLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DistanceLabel");
-        _windLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/WindLabel");
-        _statusLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/StatusLabel");
-        _debugLabel = GetNodeOrNull<Label>("MarginContainer/VBoxContainer/DebugLabel");
-        _returnToMenuButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
-        _recoveryTestButton = GetNodeOrNull<Button>("MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
+        PixelUiStyler.ApplyHudStyle(this);
+
+        _holeLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/HoleLabel");
+        _parLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/ParLabel");
+        _strokeLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/StrokeLabel");
+        _clubLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/ClubLabel");
+        _powerLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/PowerLabel");
+        _shotProfileLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/ShotProfileLabel");
+        _lieLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/LieLabel");
+        _distanceLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/DistanceLabel");
+        _windLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/WindLabel");
+        _statusLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/StatusLabel");
+        _debugLabel = GetNodeOrNull<Label>("InfoPanel/MarginContainer/VBoxContainer/DebugLabel");
+        _powerMeter = GetNodeOrNull<ProgressBar>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/PowerMeter");
+        _returnToMenuButton = GetNodeOrNull<Button>("InfoPanel/MarginContainer/VBoxContainer/ButtonRow/ReturnToMenuButton");
+        _recoveryTestButton = GetNodeOrNull<Button>("InfoPanel/MarginContainer/VBoxContainer/ButtonRow/RecoveryPromptButton");
         _driverButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/DriverButton");
         _ironButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/IronButton");
         _wedgeButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/WedgeButton");
         _putterButton = GetNodeOrNull<Button>("ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow/PutterButton");
+
+        if (_powerMeter != null)
+        {
+            _powerMeter.MinValue = 0.0f;
+            _powerMeter.MaxValue = 100.0f;
+            _powerMeter.Value = 0.0f;
+        }
 
         if (_returnToMenuButton != null)
         {
@@ -128,10 +139,15 @@ public partial class HUDController : Control
 
     public void SetPower(float chargeRatio, float powerValue)
     {
+        var percentage = Mathf.RoundToInt(chargeRatio * 100.0f);
         if (_powerLabel != null)
         {
-            var percentage = Mathf.RoundToInt(chargeRatio * 100.0f);
             _powerLabel.Text = $"Power: {percentage}% ({powerValue:0})";
+        }
+
+        if (_powerMeter != null)
+        {
+            _powerMeter.Value = percentage;
         }
     }
 

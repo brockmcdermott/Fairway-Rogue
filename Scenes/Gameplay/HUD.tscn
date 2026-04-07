@@ -9,85 +9,98 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 script = ExtResource("1")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
+[node name="InfoPanel" type="PanelContainer" parent="."]
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 3
+anchor_left = 1.0
 anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 16
+anchor_bottom = 0.0
+offset_left = -336.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 292.0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer"]
-custom_minimum_size = Vector2(430, 0)
+[node name="MarginContainer" type="MarginContainer" parent="InfoPanel"]
 layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="InfoPanel/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 6
 
-[node name="HoleLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="TitleLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "FAIRWAY"
+
+[node name="HoleLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Hole: 1"
 
-[node name="ParLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="ParLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Par: 4"
 
-[node name="StrokeLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="StrokeLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Strokes: 0"
 
-[node name="ClubLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="ClubLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Club: Driver"
 
-[node name="PowerLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="PowerLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Power: --"
 
-[node name="ShotProfileLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="ShotProfileLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Shot: --"
 autowrap_mode = 3
 
-[node name="LieLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="LieLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Lie: --"
 
-[node name="DistanceLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="DistanceLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Distance to Cup: --"
 
-[node name="WindLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="WindLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Wind: --"
 size_flags_horizontal = 3
 autowrap_mode = 3
 
-[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="StatusLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Status: Ready"
 size_flags_horizontal = 3
 autowrap_mode = 3
 
-[node name="ButtonRow" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+[node name="ButtonRow" type="HBoxContainer" parent="InfoPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 8
 
-[node name="ReturnToMenuButton" type="Button" parent="MarginContainer/VBoxContainer/ButtonRow"]
+[node name="ReturnToMenuButton" type="Button" parent="InfoPanel/MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2
-text = "Return to Menu"
+size_flags_horizontal = 3
+text = "Main Menu"
 
-[node name="RecoveryPromptButton" type="Button" parent="MarginContainer/VBoxContainer/ButtonRow"]
+[node name="RecoveryPromptButton" type="Button" parent="InfoPanel/MarginContainer/VBoxContainer/ButtonRow"]
 layout_mode = 2
-text = "Recovery Prompt (Test)"
+size_flags_horizontal = 3
+text = "Recovery Test"
 
-[node name="DebugLabel" type="Label" parent="MarginContainer/VBoxContainer"]
+[node name="DebugLabel" type="Label" parent="InfoPanel/MarginContainer/VBoxContainer"]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
@@ -101,9 +114,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -280.0
-offset_top = -84.0
-offset_right = 280.0
+offset_left = -268.0
+offset_top = -102.0
+offset_right = 268.0
+offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 0
 
@@ -127,7 +141,7 @@ theme_override_constants/separation = 6
 
 [node name="TitleLabel" type="Label" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Clubs (1-4 or Up/Down)"
+text = "CLUBS (1-4 / UP-DOWN)"
 horizontal_alignment = 1
 
 [node name="ClubButtonRow" type="HBoxContainer" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer"]
@@ -137,16 +151,23 @@ theme_override_constants/separation = 8
 
 [node name="DriverButton" type="Button" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow"]
 layout_mode = 2
-text = "1 Driver"
+text = "1  DRIVER"
 
 [node name="IronButton" type="Button" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow"]
 layout_mode = 2
-text = "2 Iron"
+text = "2  IRON"
 
 [node name="WedgeButton" type="Button" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow"]
 layout_mode = 2
-text = "3 Wedge"
+text = "3  WEDGE"
 
 [node name="PutterButton" type="Button" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer/ClubButtonRow"]
 layout_mode = 2
-text = "4 Putter"
+text = "4  PUTTER"
+
+[node name="PowerMeter" type="ProgressBar" parent="ClubSelectorRoot/PanelContainer/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_horizontal = 3
+value = 0.0
+show_percentage = true

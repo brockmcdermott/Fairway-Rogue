@@ -3,14 +3,16 @@ using Godot;
 public partial class BallFlightEffectController : Node2D
 {
     [ExportGroup("Flight Visual")]
-    [Export] public float MaxVisualLift { get; set; } = 18.0f;
+    [Export] public float MaxVisualLift { get; set; } = 11.0f;
     [Export] public float LiftLerpSpeed { get; set; } = 10.0f;
-    [Export] public float BobAmplitude { get; set; } = 1.8f;
+    [Export] public float BobAmplitude { get; set; } = 1.2f;
     [Export] public float BobSpeed { get; set; } = 12.0f;
+    [Export] public float VisualLiftScale { get; set; } = 0.92f;
 
     [ExportGroup("Shadow")]
-    [Export] public Vector2 ShadowOffsetScale { get; set; } = new Vector2(0.35f, 0.55f);
+    [Export] public Vector2 ShadowOffsetScale { get; set; } = new Vector2(0.18f, 0.24f);
     [Export] public Color ShadowColor { get; set; } = new Color(0.04f, 0.06f, 0.06f, 0.38f);
+    [Export] public float ShadowArcWidth { get; set; } = 2.6f;
 
     [ExportGroup("Ball")]
     [Export] public Color BallColor { get; set; } = new Color(0.97f, 0.98f, 0.99f);
@@ -63,14 +65,23 @@ public partial class BallFlightEffectController : Node2D
 
         var speedRatio = _ball.SpeedRatio;
         var bob = _ball.IsMoving && !_ball.IsAirborne ? Mathf.Sin(_bobTime) * BobAmplitude * speedRatio : 0.0f;
-        var totalLift = Mathf.Max(0.0f, _visualLift + bob);
+        var totalLift = Mathf.Max(0.0f, (_visualLift + bob) * Mathf.Max(0.05f, VisualLiftScale));
         var radius = Mathf.Max(1.0f, _ball.Radius);
 
         var shadowOffset = new Vector2(totalLift * ShadowOffsetScale.X, totalLift * ShadowOffsetScale.Y);
-        var shadowRadius = radius * Mathf.Lerp(1.0f, 0.72f, speedRatio);
+        var shadowRadius = radius * Mathf.Lerp(1.0f, 0.80f, speedRatio);
         var shadowAlpha = ShadowColor.A * Mathf.Lerp(1.0f, 0.55f, speedRatio);
         var shadow = new Color(ShadowColor.R, ShadowColor.G, ShadowColor.B, shadowAlpha);
-        DrawCircle(shadowOffset, shadowRadius, shadow);
+        var arcLiftFade = Mathf.Lerp(1.0f, 0.58f, Mathf.Clamp(totalLift / Mathf.Max(1.0f, _ball.AirborneMaxVisualHeight), 0.0f, 1.0f));
+        DrawArc(
+            shadowOffset + new Vector2(0.0f, radius * 0.15f),
+            shadowRadius,
+            Mathf.DegToRad(20.0f),
+            Mathf.DegToRad(160.0f),
+            24,
+            new Color(shadow.R, shadow.G, shadow.B, shadow.A * arcLiftFade),
+            ShadowArcWidth,
+            true);
 
         var ballPosition = new Vector2(0.0f, -totalLift);
         DrawCircle(ballPosition, radius, BallColor);

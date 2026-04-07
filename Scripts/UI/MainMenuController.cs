@@ -8,6 +8,12 @@ public partial class MainMenuController : Control
     private Button? _highScoresButton;
     private Button? _quitButton;
     private AcceptDialog? _highScoresDialog;
+    private OptionButton? _highScoreLengthSelect;
+    private Control? _newRunSelectionOverlay;
+    private Button? _threeHoleButton;
+    private Button? _nineHoleButton;
+    private Button? _eighteenHoleButton;
+    private Button? _cancelNewRunButton;
 
     private GameManager? GameManagerSingleton => AutoloadLocator.Get<GameManager>(this, nameof(GameManager));
     private SaveManager? SaveManagerSingleton => AutoloadLocator.Get<SaveManager>(this, nameof(SaveManager));
@@ -16,12 +22,32 @@ public partial class MainMenuController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyMenuStyle(this);
+
         _newRunButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/NewRunButton");
         _continueButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ContinueButton");
         _settingsButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/SettingsButton");
         _highScoresButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HighScoresButton");
         _quitButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/QuitButton");
         _highScoresDialog = GetNodeOrNull<AcceptDialog>("HighScoresDialog");
+        _highScoreLengthSelect = GetNodeOrNull<OptionButton>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HighScoreFilterRow/HighScoreLengthSelect");
+        _newRunSelectionOverlay = GetNodeOrNull<Control>("NewRunSelectionOverlay");
+        _threeHoleButton = GetNodeOrNull<Button>("NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ThreeHoleButton");
+        _nineHoleButton = GetNodeOrNull<Button>("NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer/NineHoleButton");
+        _eighteenHoleButton = GetNodeOrNull<Button>("NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer/EighteenHoleButton");
+        _cancelNewRunButton = GetNodeOrNull<Button>("NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer/CancelButton");
+
+        if (_newRunSelectionOverlay != null)
+        {
+            PixelUiStyler.ApplyOverlayStyle(_newRunSelectionOverlay);
+            _newRunSelectionOverlay.Visible = false;
+        }
+
+        ConfigureRunLengthSelector();
+        if (_highScoreLengthSelect != null)
+        {
+            _highScoreLengthSelect.ItemSelected += _ => RefreshHighScoreButtonLabel();
+        }
 
         if (_newRunButton != null)
         {
@@ -48,7 +74,28 @@ public partial class MainMenuController : Control
             _quitButton.Pressed += OnQuitPressed;
         }
 
+        if (_threeHoleButton != null)
+        {
+            _threeHoleButton.Pressed += () => OnRunLengthSelected(3);
+        }
+
+        if (_nineHoleButton != null)
+        {
+            _nineHoleButton.Pressed += () => OnRunLengthSelected(9);
+        }
+
+        if (_eighteenHoleButton != null)
+        {
+            _eighteenHoleButton.Pressed += () => OnRunLengthSelected(18);
+        }
+
+        if (_cancelNewRunButton != null)
+        {
+            _cancelNewRunButton.Pressed += HideRunLengthOverlay;
+        }
+
         RefreshContinueButton();
+        RefreshHighScoreButtonLabel();
         GameManagerSingleton?.ChangeState(GameState.MainMenu);
         AudioManagerSingleton?.PlayMusic("menu");
     }
@@ -74,7 +121,7 @@ public partial class MainMenuController : Control
     private void OnNewRunPressed()
     {
         AudioManagerSingleton?.PlaySfx("ui_click");
-        GameManagerSingleton?.StartNewRun();
+        ShowRunLengthOverlay();
     }
 
     private void OnContinuePressed()
@@ -97,8 +144,9 @@ public partial class MainMenuController : Control
             return;
         }
 
-        var highScore = SaveManagerSingleton?.LoadHighScore() ?? 0;
-        var bestRun = SaveManagerSingleton?.LoadBestRun();
+        var selectedRunLength = GetSelectedRunLength();
+        var highScore = SaveManagerSingleton?.LoadHighScore(selectedRunLength) ?? 0;
+        var bestRun = SaveManagerSingleton?.LoadBestRun(selectedRunLength);
         var bestRunText = "No completed run saved yet.";
         if (bestRun != null)
         {
@@ -111,7 +159,7 @@ public partial class MainMenuController : Control
         }
 
         _highScoresDialog.DialogText =
-            "High Scores\n\n" +
+            $"High Scores ({selectedRunLength} Holes)\n\n" +
             $"Best Score (relative to par): {highScore}\n\n" +
             bestRunText;
         AudioManagerSingleton?.PlaySfx("ui_click");
@@ -128,5 +176,77 @@ public partial class MainMenuController : Control
         }
 
         GetTree().Quit();
+    }
+
+    private void ConfigureRunLengthSelector()
+    {
+        if (_highScoreLengthSelect == null)
+        {
+            return;
+        }
+
+        _highScoreLengthSelect.Clear();
+        for (var i = 0; i < RunManager.SupportedRunLengths.Length; i += 1)
+        {
+            var runLength = RunManager.SupportedRunLengths[i];
+            _highScoreLengthSelect.AddItem($"{runLength} Holes", runLength);
+            if (runLength == RunManager.DefaultTotalHoles)
+            {
+                _highScoreLengthSelect.Select(i);
+            }
+        }
+    }
+
+    private int GetSelectedRunLength()
+    {
+        if (_highScoreLengthSelect == null || _highScoreLengthSelect.GetSelectedId() <= 0)
+        {
+            return RunManager.DefaultTotalHoles;
+        }
+
+        return _highScoreLengthSelect.GetSelectedId();
+    }
+
+    private void ShowRunLengthOverlay()
+    {
+        if (_newRunSelectionOverlay == null)
+        {
+            GameManagerSingleton?.StartNewRunWithHoleCount(RunManager.DefaultTotalHoles);
+            return;
+        }
+
+        _newRunSelectionOverlay.Visible = true;
+        _nineHoleButton?.GrabFocus();
+    }
+
+    private void HideRunLengthOverlay()
+    {
+        AudioManagerSingleton?.PlaySfx("ui_click");
+        if (_newRunSelectionOverlay != null)
+        {
+            _newRunSelectionOverlay.Visible = false;
+        }
+    }
+
+    private void OnRunLengthSelected(int holeCount)
+    {
+        AudioManagerSingleton?.PlaySfx("ui_click");
+        if (_newRunSelectionOverlay != null)
+        {
+            _newRunSelectionOverlay.Visible = false;
+        }
+
+        GameManagerSingleton?.StartNewRunWithHoleCount(holeCount);
+    }
+
+    private void RefreshHighScoreButtonLabel()
+    {
+        if (_highScoresButton == null)
+        {
+            return;
+        }
+
+        var runLength = GetSelectedRunLength();
+        _highScoresButton.Text = $"High Scores ({runLength}h)";
     }
 }

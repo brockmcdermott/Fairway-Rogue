@@ -22,6 +22,8 @@ public partial class ShopController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyMenuStyle(this);
+
         _currencyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/CurrencyLabel");
         _activeBallLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/ActiveBallLabel");
         _ballSelect = GetNodeOrNull<OptionButton>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BallRow/BallSelect");

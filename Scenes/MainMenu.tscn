@@ -20,19 +20,19 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(420, 0)
+custom_minimum_size = Vector2(470, 0)
 layout_mode = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer"]
 layout_mode = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 22
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 10
 
 [node name="TitleLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -41,7 +41,13 @@ horizontal_alignment = 1
 
 [node name="SubtitleLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
-text = "Top-Down 2D Golf Roguelite"
+text = "Arcade Pixel Golf Roguelite"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HintLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Choose 3, 9, or 18 holes and play one full generated course."
 horizontal_alignment = 1
 autowrap_mode = 3
 
@@ -57,6 +63,18 @@ text = "Continue"
 layout_mode = 2
 text = "Settings"
 
+[node name="HighScoreFilterRow" type="HBoxContainer" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="HighScoreFilterLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HighScoreFilterRow"]
+layout_mode = 2
+text = "Scores:"
+
+[node name="HighScoreLengthSelect" type="OptionButton" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer/HighScoreFilterRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
 [node name="HighScoresButton" type="Button" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "High Scores"
@@ -65,6 +83,80 @@ text = "High Scores"
 layout_mode = 2
 text = "Quit"
 
+[node name="FooterLabel" type="Label" parent="CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Desktop build prototype"
+horizontal_alignment = 1
+
 [node name="HighScoresDialog" type="AcceptDialog" parent="."]
 title = "High Scores"
 dialog_text = "High scores placeholder"
+
+[node name="NewRunSelectionOverlay" type="Control" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dimmer" type="ColorRect" parent="NewRunSelectionOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.64)
+
+[node name="CenterContainer" type="CenterContainer" parent="NewRunSelectionOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="NewRunSelectionOverlay/CenterContainer"]
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Choose Course Length"
+horizontal_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Generate one full course map and play hole-to-hole."
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="ThreeHoleButton" type="Button" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "3 Holes"
+
+[node name="NineHoleButton" type="Button" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "9 Holes"
+
+[node name="EighteenHoleButton" type="Button" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "18 Holes"
+
+[node name="CancelButton" type="Button" parent="NewRunSelectionOverlay/CenterContainer/PanelContainer/MarginContainer/VBoxContainer"]
+layout_mode = 2
+text = "Cancel"

@@ -17,6 +17,8 @@ public partial class RecoveryDialogController : Control
 
     public override void _Ready()
     {
+        PixelUiStyler.ApplyOverlayStyle(this);
+
         _dropButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/DropButton");
         _playFromLieButton = GetNodeOrNull<Button>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/PlayFromLieButton");
         _bodyLabel = GetNodeOrNull<Label>("CenterContainer/PanelContainer/MarginContainer/VBoxContainer/BodyLabel");

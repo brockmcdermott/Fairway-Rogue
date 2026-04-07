@@ -104,8 +104,30 @@ shape = SubResource("2")
 [node name="BallSpawn" type="Marker2D" parent="."]
 position = Vector2(190, 350)
 
+[node name="TeeVisual" type="Node2D" parent="BallSpawn"]
+z_index = 75
+
+[node name="TeeShadow" type="Polygon2D" parent="BallSpawn/TeeVisual"]
+position = Vector2(0, 7)
+color = Color(0.05, 0.07, 0.06, 0.45)
+polygon = PackedVector2Array(0, -14, 16, -8, 22, 0, 16, 8, 0, 14, -16, 8, -22, 0, -16, -8)
+
+[node name="TeePad" type="Polygon2D" parent="BallSpawn/TeeVisual"]
+color = Color(0.561, 0.839, 0.365, 1)
+polygon = PackedVector2Array(0, -13, 14, -9, 19, 0, 14, 9, 0, 13, -14, 9, -19, 0, -14, -9)
+
+[node name="TeeRing" type="Polygon2D" parent="BallSpawn/TeeVisual"]
+color = Color(0.82, 0.95, 0.72, 0.72)
+polygon = PackedVector2Array(0, -9, 10, -6, 14, 0, 10, 6, 0, 9, -10, 6, -14, 0, -10, -6)
+
+[node name="TeePeg" type="Polygon2D" parent="BallSpawn/TeeVisual"]
+position = Vector2(0, -3)
+color = Color(0.95, 0.50, 0.18, 1)
+polygon = PackedVector2Array(0, -4, 2, -2, 2, 5, -2, 5, -2, -2)
+
 [node name="Cup" type="Node2D" parent="."]
 position = Vector2(1060, 350)
+z_index = 80
 
 [node name="CupArea" type="Area2D" parent="Cup"]
 collision_layer = 1
@@ -121,3 +143,24 @@ polygon = PackedVector2Array(0, -14, 10, -10, 14, 0, 10, 10, 0, 14, -10, 10, -14
 [node name="CupHole" type="Polygon2D" parent="Cup"]
 color = Color(0.08, 0.08, 0.08, 1)
 polygon = PackedVector2Array(0, -8, 6, -6, 8, 0, 6, 6, 0, 8, -6, 6, -8, 0, -6, -6)
+
+[node name="CupShadow" type="Polygon2D" parent="Cup"]
+position = Vector2(4, 4)
+color = Color(0.05, 0.07, 0.06, 0.35)
+polygon = PackedVector2Array(0, -16, 11, -11, 16, 0, 11, 11, 0, 16, -11, 11, -16, 0, -11, -11)
+z_index = -1
+
+[node name="FlagPole" type="Line2D" parent="Cup"]
+points = PackedVector2Array(0, -48, 0, -8)
+width = 3.0
+default_color = Color(0.96, 0.97, 0.95, 1)
+
+[node name="FlagBody" type="Polygon2D" parent="Cup"]
+position = Vector2(0, -44)
+color = Color(0.94, 0.44, 0.11, 1)
+polygon = PackedVector2Array(0, 0, 18, 4, 0, 10)
+
+[node name="FlagStripe" type="Polygon2D" parent="Cup"]
+position = Vector2(4, -42)
+color = Color(1, 0.86, 0.56, 0.9)
+polygon = PackedVector2Array(0, 1, 10, 3, 0, 6)

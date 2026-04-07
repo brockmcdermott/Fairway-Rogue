@@ -12,11 +12,11 @@ public static class ProgressionCatalog
             Id = "club_driver",
             ClubType = ClubType.Driver,
             Name = "Driver",
-            MinPower = 220.0f,
-            MaxPower = 620.0f,
+            MinPower = 230.0f,
+            MaxPower = 700.0f,
             FrictionMultiplier = 0.95f,
             AimGuideScale = 0.42f,
-            LoftFactor = 0.32f,
+            LoftFactor = 0.58f,
             ShotDispersionDegrees = 2.4f
         },
         new ClubData
@@ -28,7 +28,7 @@ public static class ProgressionCatalog
             MaxPower = 470.0f,
             FrictionMultiplier = 1.00f,
             AimGuideScale = 0.38f,
-            LoftFactor = 0.56f,
+            LoftFactor = 0.76f,
             ShotDispersionDegrees = 1.7f
         },
         new ClubData
@@ -40,7 +40,7 @@ public static class ProgressionCatalog
             MaxPower = 320.0f,
             FrictionMultiplier = 1.08f,
             AimGuideScale = 0.34f,
-            LoftFactor = 0.84f,
+            LoftFactor = 0.98f,
             ShotDispersionDegrees = 1.4f
         },
         new ClubData
@@ -52,7 +52,7 @@ public static class ProgressionCatalog
             MaxPower = 170.0f,
             FrictionMultiplier = 1.18f,
             AimGuideScale = 0.28f,
-            LoftFactor = 0.04f,
+            LoftFactor = 0.02f,
             ShotDispersionDegrees = 0.25f
         }
     };
